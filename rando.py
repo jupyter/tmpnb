@@ -24,14 +24,12 @@ from tornado.httpclient import HTTPRequest, AsyncHTTPClient
 class RandomHandler(RequestHandler):
     @gen.coroutine
     def get(self):
-        random_path=base64.urlsafe_b64encode(uuid.uuid4().bytes)
+        random_path=str(uuid.uuid4())
 
         self.write("Initializing {}".format(random_path))
 
         port = self.create_notebook_server(random_path)
 
-        app_log.info("Created {} of type {}".format(port, type(port)))
-    
         self.proxy(port, random_path)
 
         # Wait for the notebook server to come up.
