@@ -27,6 +27,8 @@ class RandomHandler(RequestHandler):
         port = self.create_notebook_server(random_path)
         self.proxy(port, random_path)
 
+        # TODO: Actually make sure the notebook server is up
+        self.redirect("/" + random_path, permanent=False)
 
     @property
     def docker_client(self):
@@ -36,7 +38,6 @@ class RandomHandler(RequestHandler):
     def proxy_token(self):
         return self.settings['proxy_token']
 
-    @gen.coroutine
     def create_notebook_server(self, base_path):
         '''
         POST /containers/create
