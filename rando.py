@@ -29,22 +29,30 @@ class RandomHandler(RequestHandler):
         self.write("Initializing {}".format(random_path))
 
         port = self.create_notebook_server(random_path)
+
+        app_log.info("Created {} of type {}".format(port, type(port)))
     
-        yield self.wait_for_server("127.0.0.1", port)
-        
         self.proxy(port, random_path)
+
+        # Wait for the notebook server to come up.
+        yield self.wait_for_server("127.0.0.1", port)
+
+        # TODO: Fix this fudge factor
+        loop = ioloop.IOLoop.current()
+        yield gen.Task(loop.add_timeout, loop.time() + .9)
 
         self.redirect("/" + random_path, permanent=False)
 
     @gen.coroutine
-    def wait_for_server(self, ip, port, timeout=10, wait_time=0.1):
+    def wait_for_server(self, ip, port, timeout=10, wait_time=0.2):
         '''Wait for a server to show up at ip:port'''
         loop = ioloop.IOLoop.current()
         tic = loop.time()
         while loop.time() - tic < timeout:
             try:
                 socket.create_connection((ip, port))
-            except socket.error:
+            except socket.error as e:
+                app_log.info(e)
                 self.write(".")
                 yield gen.Task(loop.add_timeout, loop.time() + wait_time)
             else:
@@ -73,7 +81,7 @@ class RandomHandler(RequestHandler):
         docker_client.start(container_id, port_bindings={8888: ('127.0.0.1',)})
         port = docker_client.port(container_id, 8888)[0]['HostPort']
 
-        return port
+        return int(port)
 
     @gen.coroutine
     def proxy(self, port, base_path):
