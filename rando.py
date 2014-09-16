@@ -30,14 +30,10 @@ class RandomHandler(RequestHandler):
 
         port = self.create_notebook_server(random_path)
 
-        self.proxy(port, random_path)
+        yield self.proxy(port, random_path)
 
         # Wait for the notebook server to come up.
         yield self.wait_for_server("127.0.0.1", port)
-
-        # TODO: Fix this fudge factor
-        loop = ioloop.IOLoop.current()
-        yield gen.Task(loop.add_timeout, loop.time() + .9)
 
         self.redirect("/" + random_path, permanent=False)
 
