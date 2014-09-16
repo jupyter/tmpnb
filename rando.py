@@ -4,6 +4,8 @@
 import base64
 import json
 import os
+import socket
+import time
 import uuid
 
 import docker
@@ -14,6 +16,7 @@ from tornado.log import app_log
 from tornado.web import RequestHandler
 
 from tornado import gen, web
+from tornado import ioloop
 
 from tornado.httputil import url_concat
 from tornado.httpclient import HTTPRequest, AsyncHTTPClient
@@ -24,11 +27,28 @@ class RandomHandler(RequestHandler):
         random_path=base64.urlsafe_b64encode(uuid.uuid4().bytes)
 
         self.write("Initializing {}".format(random_path))
+
         port = self.create_notebook_server(random_path)
+    
+        yield self.wait_for_server("127.0.0.1", port)
+        
         self.proxy(port, random_path)
 
-        # TODO: Actually make sure the notebook server is up
         self.redirect("/" + random_path, permanent=False)
+
+    @gen.coroutine
+    def wait_for_server(self, ip, port, timeout=10, wait_time=0.1):
+        '''Wait for a server to show up at ip:port'''
+        loop = ioloop.IOLoop.current()
+        tic = loop.time()
+        while loop.time() - tic < timeout:
+            try:
+                socket.create_connection((ip, port))
+            except socket.error:
+                self.write(".")
+                yield gen.Task(loop.add_timeout, loop.time() + wait_time)
+            else:
+                break
 
     @property
     def docker_client(self):
