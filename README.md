@@ -10,8 +10,9 @@ Launches "temporary" IPython notebook servers.
 #### Installation
 
 ```
-npm install jupyter/configurable-http-proxy
 docker build -t jupyter/tmpnb tmpnb
+npm install jupyter/configurable-http-proxy
+pip install -r requirements.txt
 ./launchie.sh
 ```
 
