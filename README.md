@@ -11,7 +11,7 @@ Launches "temporary" IPython notebook servers.
 
 ```
 npm install jupyter/configurable-http-proxy
-docker build -t tmpnb .
+docker build -t jupyter/tmpnb tmpnb
 ./launchie.sh
 ```
 
