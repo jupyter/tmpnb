@@ -40,4 +40,4 @@ WORKDIR /home/jupyter/
 
 ADD Welcome.ipynb /home/jupyter/
 
-ENTRYPOINT ["/usr/local/bin/notebook.sh"]
+CMD ["/usr/local/bin/notebook.sh"]
