@@ -11,6 +11,7 @@ RUN mkdir -p /srv/
 WORKDIR /srv/
 RUN git clone --recursive https://github.com/ipython/ipython.git
 WORKDIR /srv/ipython/
+RUN chmod a+rw /srv/ipython/examples
 
 # Installing certain dependencies directly
 RUN pip2 install fabric
@@ -39,5 +40,6 @@ ENV USER jupyter
 WORKDIR /home/jupyter/
 
 ADD Welcome.ipynb /home/jupyter/
+RUN cp -r /srv/ipython/examples /home/jupyter/examples
 
 CMD ["/usr/local/bin/notebook.sh"]
