@@ -23,13 +23,14 @@ from tornado import ioloop
 from tornado.httputil import url_concat
 from tornado.httpclient import HTTPRequest, AsyncHTTPClient
 
+def sample_with_replacement(a, size=12):
+    '''Get a random path. If Python had sampling with replacement built in,
+    I would use that. The other alternative is numpy.random.choice, but
+    numpy is overkill for this tiny bit of random pathing.'''
+    return "".join([random.choice(a) for x in range(size)])
+
 class RandomHandler(RequestHandler):
 
-    def sample_with_replacement(a, size=12):
-        '''Get a random path. If Python had sampling with replacement built in,
-        I would use that. The other alternative is numpy.random.choice, but
-        numpy is overkill for this tiny bit of random pathing.'''
-        return "".join([random.choice(a) for x in range(size)])
 
     @gen.coroutine
     def get(self):
