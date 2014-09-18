@@ -38,4 +38,6 @@ ENV USER jupyter
 
 WORKDIR /home/jupyter/
 
+ADD Welcome.ipynb /home/jupyter/
+
 ENTRYPOINT ["/usr/local/bin/notebook.sh"]
