@@ -4,7 +4,9 @@
 import base64
 import json
 import os
+import random
 import socket
+import string
 import time
 import uuid
 
@@ -24,7 +26,10 @@ from tornado.httpclient import HTTPRequest, AsyncHTTPClient
 class RandomHandler(RequestHandler):
     @gen.coroutine
     def get(self):
-        random_path=str(uuid.uuid4())
+        # Get a random path. If Python had sampling with replacement built in,
+        # I would use that. The other alternative is numpy.random.choice, but
+        # numpy is overkill for this tiny bit of random pathing.
+        random_path="".join([random.choice(string.ascii_letters + string.digits) for x in range(12)])
 
         self.write("Initializing {}".format(random_path))
 
