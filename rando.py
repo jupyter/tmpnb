@@ -47,7 +47,7 @@ class RandomHandler(RequestHandler):
         yield self.wait_for_server("127.0.0.1", port)
 
         loop = ioloop.IOLoop.current()
-        yield gen.Task(loop.add_timeout, loop.time() + .9)
+        yield gen.Task(loop.add_timeout, loop.time() + 1.1)
 
         self.redirect("/" + random_path, permanent=False)
 
