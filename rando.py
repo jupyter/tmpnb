@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import errno
+import datetime
 import json
 import os
 import random
@@ -21,7 +22,7 @@ from tornado import gen, web
 from tornado import ioloop
 
 from tornado.httputil import url_concat
-from tornado.httpclient import HTTPRequest, AsyncHTTPClient
+from tornado.httpclient import HTTPRequest, AsyncHTTPClient, HTTPError
 
 def sample_with_replacement(a, size=12):
     '''Get a random path. If Python had sampling with replacement built in,
@@ -29,8 +30,53 @@ def sample_with_replacement(a, size=12):
     numpy is overkill for this tiny bit of random pathing.'''
     return "".join([random.choice(a) for x in range(size)])
 
-class RandomHandler(RequestHandler):
+@gen.coroutine
+def cull_idle(docker_client, containers, proxy_token, delta=None):
+    if delta is None:
+        delta = datetime.timedelta(minutes=10)
+    http_client = AsyncHTTPClient()
 
+    dt = datetime.datetime.utcnow() - delta
+    timestamp = dt.isoformat() + 'Z'
+
+    routes_url = "http://localhost:8001/api/routes"
+
+    url = url_concat(routes_url,
+                     {'inactive_since': timestamp})
+
+    headers = {"Authorization": "token {}".format(proxy_token)}
+
+    app_log.debug("Fetching %s", url)
+    req = HTTPRequest(url,
+                      method="GET",
+                      headers=headers)
+
+    reply = yield http_client.fetch(req)
+    data = json.loads(reply.body.decode('utf8', 'replace'))
+
+    if not data:
+        app_log.debug("No stale routes to cull")
+
+    for base_path in data:
+        container_id = containers.pop(base_path.lstrip('/'), None)
+        if container_id:
+            app_log.info("shutting down container %s at %s", container_id, base_path)
+            docker_client.stop(container_id)
+            docker_client.remove_container(container_id)
+        else:
+            app_log.error("No container found for %s", base_path)
+
+        app_log.info("removing %s from proxy", base_path)
+        req = HTTPRequest(routes_url + base_path,
+                          method="DELETE",
+                          headers=headers)
+        try:
+            reply = yield http_client.fetch(req)
+        except HTTPError as e:
+            app_log.error("Failed to delete route %s: %s", base_path, e)
+
+
+class RandomHandler(RequestHandler):
 
     @gen.coroutine
     def get(self):
@@ -91,8 +137,10 @@ class RandomHandler(RequestHandler):
         env = {"RAND_BASE": base_path}
         container_id = docker_client.create_container(image="jupyter/tmpnb",
                                                       environment=env)
-        docker_client.start(container_id, port_bindings={8888: ('127.0.0.1',)})
+        docker_client.start(container_id, port_bindings={8888: ('0.0.0.0',)})
         port = docker_client.port(container_id, 8888)[0]['HostPort']
+
+        self.settings['containers'][base_path] = container_id
 
         return int(port)
 
@@ -115,7 +163,13 @@ def main():
     tornado.options.parse_command_line()
     handlers = [(r"/", RandomHandler)]
 
-    docker_client = docker.Client(base_url='unix://var/run/docker.sock',
+    proxy_token = os.environ['CONFIGPROXY_AUTH_TOKEN']
+    proxy_endpoint = os.environ.get('CONFIGPROXY_ENDPOINT', "http://localhost:8001")
+    docker_host = os.environ.get('DOCKER_HOST', 'unix://var/run/docker.sock')
+    
+    containers = {}
+
+    docker_client = docker.Client(base_url=docker_host,
                                   version='1.12',
                                   timeout=10)
 
@@ -125,12 +179,24 @@ def main():
         debug=True,
         autoescape=None,
         docker_client=docker_client,
-        proxy_token=os.environ['CONFIGPROXY_AUTH_TOKEN'],
-        proxy_endpoint=os.environ.get('CONFIGPROXY_ENDPOINT', "http://localhost:8001"),
+        containers=containers,
+        proxy_token=proxy_token,
+        proxy_endpoint=proxy_endpoint,
     )
+    
+    # check for idle containers to cull every five minutes
+    cull_timeout = 300
+    delta = datetime.timedelta(seconds=cull_timeout)
+    cull_ms = cull_timeout * 1e3
+    
+    culler = tornado.ioloop.PeriodicCallback(
+        lambda : cull_idle(docker_client, containers, proxy_token, delta),
+        cull_ms
+    )
+    culler.start()
 
     port=9999
-        
+
     app_log.info("Listening on {}".format(port))
 
     application = tornado.web.Application(handlers, **settings)
