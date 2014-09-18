@@ -68,6 +68,10 @@ class RandomHandler(RequestHandler):
     def proxy_token(self):
         return self.settings['proxy_token']
 
+    @property
+    def proxy_endpoint(self):
+        return self.settings['proxy_endpoint']
+
     def create_notebook_server(self, base_path):
         '''
         POST /containers/create
@@ -89,7 +93,7 @@ class RandomHandler(RequestHandler):
         http_client = AsyncHTTPClient()
         headers = {"Authorization": "token {}".format(self.proxy_token)}
 
-        proxy_endpoint = "http://localhost:8001/api/routes/{}".format(base_path)
+        proxy_endpoint = self.proxy_endpoint + "/api/routes/{}".format(base_path)
         body = json.dumps({"target": "http://localhost:{}".format(port)})
 
         req = HTTPRequest(proxy_endpoint,
@@ -114,6 +118,7 @@ def main():
         autoescape=None,
         docker_client=docker_client,
         proxy_token=os.environ['CONFIGPROXY_AUTH_TOKEN'],
+        proxy_endpoint=os.environ.get('CONFIGPROXY_ENDPOINT', "http://localhost:8001"),
     )
 
     port=9999
