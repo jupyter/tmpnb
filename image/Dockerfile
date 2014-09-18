@@ -13,6 +13,9 @@ RUN git clone --recursive https://github.com/ipython/ipython.git
 WORKDIR /srv/ipython/
 RUN chmod a+rw /srv/ipython/examples
 
+# Add Google Analytics templates
+ADD ga/ /srv/ga/
+
 # Installing certain dependencies directly
 RUN pip2 install fabric
 RUN pip3 install jsonschema jsonpointer fabric
