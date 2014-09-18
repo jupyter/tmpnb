@@ -9,7 +9,7 @@ MAINTAINER IPython Project <ipython-dev@scipy.org>
 # Can't directly add the source as it won't have the submodules
 RUN mkdir -p /srv/
 WORKDIR /srv/
-RUN git clone --recursive https://github.com/ipython/ipython.git
+RUN git clone --recursive --depth 1 https://github.com/ipython/ipython.git
 WORKDIR /srv/ipython/
 RUN chmod a+rw /srv/ipython/examples
 
