@@ -43,6 +43,7 @@ ENV USER jupyter
 WORKDIR /home/jupyter/
 
 ADD Welcome.ipynb /home/jupyter/
+RUN ipython profile create default
 ADD custom.js /home/jupyter/.ipython/profile_default/static/custom/custom.js
 RUN cp -r /srv/ipython/examples /home/jupyter/examples
 
