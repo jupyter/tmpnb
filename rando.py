@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import base64
+import errno
 import json
 import os
 import random
@@ -60,8 +60,10 @@ class RandomHandler(RequestHandler):
             try:
                 socket.create_connection((ip, port))
             except socket.error as e:
-                app_log.info(e)
-                self.write(".")
+                if e.errno != errno.ECONNREFUSED:
+                    app_log.warn("Error attempting to connect to %s:%i - %s",
+                        ip, port, e,
+                    )
                 yield gen.Task(loop.add_timeout, loop.time() + wait_time)
             else:
                 break
