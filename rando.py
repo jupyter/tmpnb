@@ -23,25 +23,14 @@ from tornado import ioloop
 from tornado.httputil import url_concat
 from tornado.httpclient import HTTPRequest, AsyncHTTPClient
 
-def sample_with_replacement(a, size=12):
-    '''Get a random path. If Python had sampling with replacement built in,
-    I would use that. The other alternative is numpy.random.choice, but
-    numpy is overkill for this tiny bit of random pathing.'''
-    return "".join([random.choice(a) for x in range(size)])
-
 class RandomHandler(RequestHandler):
-
 
     @gen.coroutine
     def get(self):
-        random_path = "user-" + sample_with_replacement(string.ascii_letters +
-                                                        string.digits)
+        port, container_id = self.create_notebook_server()
+        path = "user-" + container_id[:12]
 
-        self.write("Initializing {}".format(random_path))
-
-        port = self.create_notebook_server(random_path)
-
-        yield self.proxy(port, random_path)
+        yield self.proxy(port, path)
 
         # Wait for the notebook server to come up.
         yield self.wait_for_server("127.0.0.1", port)
@@ -49,7 +38,7 @@ class RandomHandler(RequestHandler):
         loop = ioloop.IOLoop.current()
         yield gen.Task(loop.add_timeout, loop.time() + 1.1)
 
-        self.redirect("/" + random_path, permanent=False)
+        self.redirect("/" + path, permanent=False)
 
     @gen.coroutine
     def wait_for_server(self, ip, port, timeout=10, wait_time=0.2):
@@ -80,7 +69,7 @@ class RandomHandler(RequestHandler):
     def proxy_endpoint(self):
         return self.settings['proxy_endpoint']
 
-    def create_notebook_server(self, base_path):
+    def create_notebook_server(self):
         '''
         POST /containers/create
         '''
@@ -88,13 +77,12 @@ class RandomHandler(RequestHandler):
 
         docker_client = self.docker_client
 
-        env = {"RAND_BASE": base_path}
-        container_id = docker_client.create_container(image="jupyter/tmpnb",
-                                                      environment=env)
-        docker_client.start(container_id, port_bindings={8888: ('127.0.0.1',)})
-        port = docker_client.port(container_id, 8888)[0]['HostPort']
+        creation_response = docker_client.create_container(image="jupyter/tmpnb")
+        app_log.info(creation_response)
+        docker_client.start(creation_response, port_bindings={8888: ('127.0.0.1',)})
+        port = docker_client.port(creation_response, 8888)[0]['HostPort']
 
-        return int(port)
+        return int(port), creation_response['Id']
 
     @gen.coroutine
     def proxy(self, port, base_path):
