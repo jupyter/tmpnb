@@ -43,6 +43,7 @@ ENV USER jupyter
 WORKDIR /home/jupyter/
 
 ADD Welcome.ipynb /home/jupyter/
+ADD custom.js /home/jupyter/.ipython/profile_default/static/custom/custom.js
 RUN cp -r /srv/ipython/examples /home/jupyter/examples
 
 CMD ["/usr/local/bin/notebook.sh"]
