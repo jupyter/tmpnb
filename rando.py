@@ -28,7 +28,7 @@ class RandomHandler(RequestHandler):
     @gen.coroutine
     def get(self):
         port, container_id = self.create_notebook_server()
-        path = container_id
+        path = "user-" + container_id
 
         yield self.proxy(port, path)
 
@@ -77,11 +77,12 @@ class RandomHandler(RequestHandler):
 
         docker_client = self.docker_client
 
-        container_id = docker_client.create_container(image="jupyter/tmpnb")
-        docker_client.start(container_id, port_bindings={8888: ('127.0.0.1',)})
-        port = docker_client.port(container_id, 8888)[0]['HostPort']
 
-        return int(port), container_id
+        creation_response = docker_client.create_container(image="jupyter/tmpnb")
+        docker_client.start(creation_response, port_bindings={8888: ('127.0.0.1',)})
+        port = docker_client.port(creation_response, 8888)[0]['HostPort']
+
+        return int(port), creation_response['Id']
 
     @gen.coroutine
     def proxy(self, port, base_path):
