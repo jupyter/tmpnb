@@ -1,2 +1,1 @@
-options(repos=c(RForge='http://rforge.net', CRAN='http://cran.rstudio.com'))
 options(repos=structure(c(CRAN="http://cran.rstudio.com")))
