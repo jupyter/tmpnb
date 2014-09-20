@@ -61,7 +61,7 @@ def cull_idle(docker_client, containers, proxy_token, delta=None):
         container_id = containers.pop(base_path.lstrip('/'), None)
         if container_id:
             app_log.info("shutting down container %s at %s", container_id, base_path)
-            docker_client.stop(container_id)
+            docker_client.kill(container_id)
             docker_client.remove_container(container_id)
         else:
             app_log.error("No container found for %s", base_path)
