@@ -75,6 +75,9 @@ def cull_idle(docker_client, containers, proxy_token, delta=None):
         except HTTPError as e:
             app_log.error("Failed to delete route %s: %s", base_path, e)
 
+class IndexHandler(RequestHandler):
+    def get(self):
+        self.render("index.html")
 
 class RandomHandler(RequestHandler):
 
@@ -176,7 +179,10 @@ def main():
     tornado.options.parse_command_line()
     opts = tornado.options.options
 
-    handlers = [(r"/", RandomHandler)]
+    handlers = [
+        (r"/", IndexHandler),
+        (r"/random", RandomHandler),
+    ]
 
     proxy_token = os.environ['CONFIGPROXY_AUTH_TOKEN']
     proxy_endpoint = os.environ.get('CONFIGPROXY_ENDPOINT', "http://localhost:8001")
@@ -197,6 +203,7 @@ def main():
         container_ip = opts.container_ip,
         containers=containers,
         proxy_token=proxy_token,
+        template_path=os.path.join(os.path.dirname(__file__), 'templates'),
         proxy_endpoint=proxy_endpoint,
     )
     
