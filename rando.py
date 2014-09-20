@@ -33,7 +33,7 @@ def sample_with_replacement(a, size=12):
 @gen.coroutine
 def cull_idle(docker_client, containers, proxy_token, delta=None):
     if delta is None:
-        delta = datetime.timedelta(minutes=10)
+        delta = datetime.timedelta(minutes=60)
     http_client = AsyncHTTPClient()
 
     dt = datetime.datetime.utcnow() - delta
@@ -126,6 +126,10 @@ class RandomHandler(RequestHandler):
     def proxy_endpoint(self):
         return self.settings['proxy_endpoint']
 
+    @property
+    def container_ip(self):
+        return self.settings['container_ip']
+
     def create_notebook_server(self, base_path):
         '''
         POST /containers/create
@@ -137,7 +141,7 @@ class RandomHandler(RequestHandler):
         env = {"RAND_BASE": base_path}
         container_id = docker_client.create_container(image="jupyter/tmpnb",
                                                       environment=env)
-        docker_client.start(container_id, port_bindings={8888: ('0.0.0.0',)})
+        docker_client.start(container_id, port_bindings={8888: (self.container_ip,)})
         port = docker_client.port(container_id, 8888)[0]['HostPort']
 
         self.settings['containers'][base_path] = container_id
@@ -160,7 +164,18 @@ class RandomHandler(RequestHandler):
         resp = yield http_client.fetch(req)
 
 def main():
+    tornado.options.define('cull_timeout', default=3600,
+        help="Timeout (s) for culling idle"
+    )
+    tornado.options.define('container_ip', default='127.0.0.1',
+        help="IP address for containers to bind to"
+    )
+    tornado.options.define('port', default=9999,
+        help="port for the main server to listen on"
+    )
     tornado.options.parse_command_line()
+    opts = tornado.options.options
+
     handlers = [(r"/", RandomHandler)]
 
     proxy_token = os.environ['CONFIGPROXY_AUTH_TOKEN']
@@ -179,28 +194,31 @@ def main():
         debug=True,
         autoescape=None,
         docker_client=docker_client,
+        container_ip = opts.container_ip,
         containers=containers,
         proxy_token=proxy_token,
         proxy_endpoint=proxy_endpoint,
     )
     
-    # check for idle containers to cull every five minutes
-    cull_timeout = 300
-    delta = datetime.timedelta(seconds=cull_timeout)
-    cull_ms = cull_timeout * 1e3
+    # check for idle containers and cull them
+    cull_timeout = opts.cull_timeout
     
-    culler = tornado.ioloop.PeriodicCallback(
-        lambda : cull_idle(docker_client, containers, proxy_token, delta),
-        cull_ms
-    )
-    culler.start()
+    if cull_timeout:
+        delta = datetime.timedelta(seconds=cull_timeout)
+        cull_ms = cull_timeout * 1e3
+        app_log.info("Culling every %i seconds", cull_timeout)
+        culler = tornado.ioloop.PeriodicCallback(
+            lambda : cull_idle(docker_client, containers, proxy_token, delta),
+            cull_ms
+        )
+        culler.start()
+    else:
+        app_log.info("Not culling idle containers")
 
-    port=9999
-
-    app_log.info("Listening on {}".format(port))
+    app_log.info("Listening on {}".format(opts.port))
 
     application = tornado.web.Application(handlers, **settings)
-    application.listen(port)
+    application.listen(opts.port)
     tornado.ioloop.IOLoop().instance().start()
 
 if __name__ == "__main__":
