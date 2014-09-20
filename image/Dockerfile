@@ -27,6 +27,10 @@ RUN python setup.py submodule
 RUN pip2 install .
 RUN pip3 install .
 
+# Install R and the R kernel
+RUN apt-get install -y r-base r-base-dev r-cran-rcurl
+ADD R/ /srv/R/
+
 EXPOSE 8888
 
 ADD notebook.sh /usr/local/bin/notebook.sh 
@@ -42,7 +46,17 @@ ENV USER jupyter
 
 WORKDIR /home/jupyter/
 
+# IPython introductions
 ADD Welcome.ipynb /home/jupyter/
 RUN cp -r /srv/ipython/examples /home/jupyter/examples
+
+# R installation
+# Copying files instead of adding due to current permissions issue with ADD
+RUN cp /srv/R/Renviron /home/jupyter/.Renviron
+RUN cp /srv/R/Rprofile /home/jupyter/.Rprofile
+RUN mkdir /home/jupyter/.R/
+
+RUN cat /srv/R/install_kernel.R | R --no-save
+RUN cat /srv/R/install_pkgs.R   | R --no-save
 
 CMD ["/usr/local/bin/notebook.sh"]
