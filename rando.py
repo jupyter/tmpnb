@@ -75,28 +75,38 @@ def cull_idle(docker_client, proxy_token, delta=None):
         except HTTPError as e:
             app_log.error("Failed to delete route %s: %s", base_path, e)
 
-class IndexHandler(RequestHandler):
-    def get(self):
-        self.render("index.html")
+class LoadingHandler(RequestHandler):
+    def get(self, path=None):
+        self.render("loading.html")
 
-class RandomHandler(RequestHandler):
+class SpawnHandler(RequestHandler):
 
     @gen.coroutine
-    
-    def get(self):
-        random_path = "user-" + sample_with_replacement(string.ascii_letters +
-                                                        string.digits)
+    def get(self, path=None):
+        if path is None:
+            # no path, use random prefix
+            prefix = "user-" + sample_with_replacement(string.ascii_letters +
+                                                       string.digits)
+        else:
+            prefix = path.lstrip('/').split('/', 1)[0]
 
-        self.write("Initializing {}".format(random_path))
+        self.write("Initializing {}".format(prefix))
 
-        container_id, port = self.create_notebook_server(random_path)
+        container_id, port = self.create_notebook_server(prefix)
 
-        yield self.proxy(port, random_path, container_id)
+        yield self.proxy(port, prefix, container_id)
 
         # Wait for the notebook server to come up.
-        yield self.wait_for_server("127.0.0.1", port, random_path)
+        yield self.wait_for_server("127.0.0.1", port, prefix)
 
-        self.redirect("/" + random_path + "/tree", permanent=False)
+        if path is None:
+            url = "/%s/tree" % prefix
+        else:
+            url = path
+            if not url.startswith('/'):
+                url = '/' + url
+        app_log.debug("redirecting %s -> %s", self.request.path, url)
+        self.redirect(url, permanent=False)
 
     @gen.coroutine
     def wait_for_server(self, ip, port, path, timeout=10, wait_time=0.2):
@@ -183,6 +193,8 @@ class RandomHandler(RequestHandler):
             "container_id": container_id,
         })
 
+        app_log.info("proxying %s to %s", base_path, port)
+
         req = HTTPRequest(proxy_endpoint,
                           method="POST",
                           headers=headers,
@@ -204,8 +216,9 @@ def main():
     opts = tornado.options.options
 
     handlers = [
-        (r"/", IndexHandler),
-        (r"/random", RandomHandler),
+        (r"/", LoadingHandler),
+        (r"/spawn/?(/.+)?", SpawnHandler),
+        (r"/(user-\w+)/.*", LoadingHandler),
     ]
 
     proxy_token = os.environ['CONFIGPROXY_AUTH_TOKEN']
