@@ -143,8 +143,11 @@ class RandomHandler(RequestHandler):
         docker_client = self.docker_client
 
         env = {"RAND_BASE": base_path}
-        container_id = docker_client.create_container(image="jupyter/tmpnb",
-                                                      environment=env)
+        resp = docker_client.create_container(image="jupyter/tmpnb",
+                                              environment=env)
+        container_id = resp['Id']
+        app_log.info("Created container {}".format(container_id))
+
         docker_client.start(container_id, port_bindings={8888: (self.container_ip,)})
         port = docker_client.port(container_id, 8888)[0]['HostPort']
 
