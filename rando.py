@@ -198,6 +198,7 @@ def main():
                                   timeout=10)
 
     settings = dict(
+        static_path=os.path.join(os.path.dirname(__file__), "static"),
         cookie_secret=uuid.uuid4(),
         xsrf_cookies=True,
         debug=True,
