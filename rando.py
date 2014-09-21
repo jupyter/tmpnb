@@ -31,7 +31,7 @@ def sample_with_replacement(a, size=12):
     return "".join([random.choice(a) for x in range(size)])
 
 @gen.coroutine
-def cull_idle(docker_client, containers, proxy_token, delta=None):
+def cull_idle(docker_client, proxy_token, delta=None):
     if delta is None:
         delta = datetime.timedelta(minutes=60)
     http_client = AsyncHTTPClient()
@@ -57,8 +57,8 @@ def cull_idle(docker_client, containers, proxy_token, delta=None):
     if not data:
         app_log.debug("No stale routes to cull")
 
-    for base_path in data:
-        container_id = containers.pop(base_path.lstrip('/'), None)
+    for base_path, route in data.items():
+        container_id = route.get('container_id', None)
         if container_id:
             app_log.info("shutting down container %s at %s", container_id, base_path)
             docker_client.kill(container_id)
@@ -82,15 +82,16 @@ class IndexHandler(RequestHandler):
 class RandomHandler(RequestHandler):
 
     @gen.coroutine
+    
     def get(self):
         random_path = "user-" + sample_with_replacement(string.ascii_letters +
                                                         string.digits)
 
         self.write("Initializing {}".format(random_path))
 
-        port = self.create_notebook_server(random_path)
+        container_id, port = self.create_notebook_server(random_path)
 
-        yield self.proxy(port, random_path)
+        yield self.proxy(port, random_path, container_id)
 
         # Wait for the notebook server to come up.
         yield self.wait_for_server("127.0.0.1", port)
@@ -147,17 +148,18 @@ class RandomHandler(RequestHandler):
         docker_client.start(container_id, port_bindings={8888: (self.container_ip,)})
         port = docker_client.port(container_id, 8888)[0]['HostPort']
 
-        self.settings['containers'][base_path] = container_id
-
-        return int(port)
+        return container_id, int(port)
 
     @gen.coroutine
-    def proxy(self, port, base_path):
+    def proxy(self, port, base_path, container_id):
         http_client = AsyncHTTPClient()
         headers = {"Authorization": "token {}".format(self.proxy_token)}
 
         proxy_endpoint = self.proxy_endpoint + "/api/routes/{}".format(base_path)
-        body = json.dumps({"target": "http://localhost:{}".format(port)})
+        body = json.dumps({
+            "target": "http://localhost:{}".format(port),
+            "container_id": container_id,
+        })
 
         req = HTTPRequest(proxy_endpoint,
                           method="POST",
@@ -188,8 +190,6 @@ def main():
     proxy_endpoint = os.environ.get('CONFIGPROXY_ENDPOINT', "http://localhost:8001")
     docker_host = os.environ.get('DOCKER_HOST', 'unix://var/run/docker.sock')
     
-    containers = {}
-
     docker_client = docker.Client(base_url=docker_host,
                                   version='1.12',
                                   timeout=10)
@@ -201,7 +201,6 @@ def main():
         autoescape=None,
         docker_client=docker_client,
         container_ip = opts.container_ip,
-        containers=containers,
         proxy_token=proxy_token,
         template_path=os.path.join(os.path.dirname(__file__), 'templates'),
         proxy_endpoint=proxy_endpoint,
@@ -215,7 +214,7 @@ def main():
         cull_ms = cull_timeout * 1e3
         app_log.info("Culling every %i seconds", cull_timeout)
         culler = tornado.ioloop.PeriodicCallback(
-            lambda : cull_idle(docker_client, containers, proxy_token, delta),
+            lambda : cull_idle(docker_client, proxy_token, delta),
             cull_ms
         )
         culler.start()
