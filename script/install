@@ -6,6 +6,8 @@ pip install -r requirements.txt
 npm install jupyter/configurable-http-proxy
 docker pull jupyter/tmpnb
 
+ln -s `pwd` /srv/tmpnb
+
 export TOKEN=$( head -c 30 /dev/urandom | xxd -p )
 echo "Your TOKEN for the configurable-http-proxy is $TOKEN"
 
