@@ -3,3 +3,9 @@
 pip install -r requirements.txt
 npm install jupyter/configurable-http-proxy
 docker pull jupyter/tmpnb
+
+export TOKEN=$( head -c 30 /dev/urandom | xxd -p )
+
+for SCRIPT in `ls script/templates`; do
+  sed -e "s;%TOKEN%;$TOKEN;g" script/templates/$SCRIPT > /etc/supervisor/conf.d/$SCRIPT
+done
