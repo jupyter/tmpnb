@@ -96,9 +96,6 @@ class RandomHandler(RequestHandler):
         # Wait for the notebook server to come up.
         yield self.wait_for_server("127.0.0.1", port, random_path)
 
-        #loop = ioloop.IOLoop.current()
-        #yield gen.Task(loop.add_timeout, loop.time() + 1.1)
-
         self.redirect("/" + random_path + "/tree", permanent=False)
 
     @gen.coroutine
