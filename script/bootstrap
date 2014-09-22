@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+script/ubuntu-base
+script/install
+script/initialize
