@@ -9,11 +9,29 @@ Launches "temporary" IPython notebook servers.
 
 #### Installation
 
+Our bootstrap script is only built for Ubuntu 14.04 currently.
+
 ```
-docker build -t jupyter/tmpnb image
-npm install jupyter/configurable-http-proxy
-pip install -r requirements.txt
-./launchie.sh
+git clone https://github.com/jupyter/tmpnb.git
+cd tmpnb
+script/bootstrap
 ```
 
 The running user needs permission on the Docker socket.
+
+#### Development
+
+```
+git clone https://github.com/jupyter/tmpnb.git
+cd tmpnb
+
+# If modifying the Docker image in any way
+docker build -t jupyter/tmpnb image
+
+pip install -r requirements.txt
+npm install jupyter/configurable-http-proxy
+
+# Kick off the proxy and run the server.
+# Runs on all interfaces on port 8000 by default.
+script/dev
+```
