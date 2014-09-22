@@ -7,7 +7,7 @@ npm install jupyter/configurable-http-proxy
 docker pull jupyter/tmpnb
 
 # Link straight from where we cloned this
-ln -s `pwd` /srv/tmpnb
+TMPNBPATH=`pwd`
 
 # Make sure "nobody" can run the configurable-http-proxy
 chmod a+rX . -R
@@ -19,11 +19,5 @@ echo "Your TOKEN for the configurable-http-proxy is $TOKEN"
 
 # Create supervisor scripts
 for SCRIPT in `ls script/templates`; do
-  sed -e "s;%TOKEN%;$TOKEN;g" script/templates/$SCRIPT > /etc/supervisor/conf.d/$SCRIPT
+  sed -e "s;%TOKEN%;$TOKEN;g" -e "s;%TMPNBPATH%;$TMPNBPATH;g" script/templates/$SCRIPT > /etc/supervisor/conf.d/$SCRIPT
 done
-
-# Initialize supervisor
-supervisorctl update
-
-# Go time!
-supervisorctl start all

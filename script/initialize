@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+
+# Initialize supervisor
+supervisorctl update
+
+# Go time!
+supervisorctl start all
