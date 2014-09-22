@@ -94,28 +94,48 @@ class RandomHandler(RequestHandler):
         yield self.proxy(port, random_path, container_id)
 
         # Wait for the notebook server to come up.
-        yield self.wait_for_server("127.0.0.1", port)
-
-        loop = ioloop.IOLoop.current()
-        yield gen.Task(loop.add_timeout, loop.time() + 1.1)
+        yield self.wait_for_server("127.0.0.1", port, random_path)
 
         self.redirect("/" + random_path + "/tree", permanent=False)
 
     @gen.coroutine
-    def wait_for_server(self, ip, port, timeout=10, wait_time=0.2):
+    def wait_for_server(self, ip, port, path, timeout=10, wait_time=0.2):
         '''Wait for a server to show up at ip:port'''
+        app_log.info("Waiting for {}:{}".format(ip,port))
         loop = ioloop.IOLoop.current()
         tic = loop.time()
         while loop.time() - tic < timeout:
             try:
                 socket.create_connection((ip, port))
             except socket.error as e:
+                app_log(e)
                 if e.errno != errno.ECONNREFUSED:
                     app_log.warn("Error attempting to connect to %s:%i - %s",
                         ip, port, e,
                     )
                 yield gen.Task(loop.add_timeout, loop.time() + wait_time)
             else:
+                break
+
+        # Fudge factor of IPython notebook bootup
+        # TODO: Implement a webhook in IPython proper to call out when the
+        # notebook server is booted
+        yield gen.Task(loop.add_timeout, loop.time() + .5)
+
+        # Now make sure that we can reach the Notebook server
+        http_client = AsyncHTTPClient()
+
+        req = HTTPRequest("http://{}:{}/{}".format(ip,port,path))
+
+        while loop.time() - tic < timeout:
+            try:
+                resp = yield http_client.fetch(req)
+            except HTTPError as http_error:
+                code = http_error.code
+                app_log.info("Booting /{}, getting {}".format(path,code))
+                yield gen.Task(loop.add_timeout, loop.time() + wait_time)
+            else:
+                app_log.info(resp)
                 break
 
     @property
