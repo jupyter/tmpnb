@@ -108,7 +108,7 @@ class RandomHandler(RequestHandler):
             try:
                 socket.create_connection((ip, port))
             except socket.error as e:
-                app_log(e)
+                app_log.warn("Socket error on boot {}".format(e))
                 if e.errno != errno.ECONNREFUSED:
                     app_log.warn("Error attempting to connect to %s:%i - %s",
                         ip, port, e,
@@ -135,7 +135,6 @@ class RandomHandler(RequestHandler):
                 app_log.info("Booting /{}, getting {}".format(path,code))
                 yield gen.Task(loop.add_timeout, loop.time() + wait_time)
             else:
-                app_log.info(resp)
                 break
 
     @property
