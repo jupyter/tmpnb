@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+pip install -r requirements.txt
+npm install jupyter/configurable-http-proxy
+docker pull jupyter/tmpnb
+
+# Link straight from where we cloned this
+TMPNBPATH=`pwd`
+
+# Make sure "nobody" can run the configurable-http-proxy
+chmod a+rX . -R
+chmod a+x node_modules/configurable-http-proxy/bin/configurable-http-proxy
+
+# Generate a random token for this node
+export TOKEN=$( head -c 30 /dev/urandom | xxd -p )
+echo "Your TOKEN for the configurable-http-proxy is $TOKEN"
+
+# Create supervisor scripts
+for SCRIPT in `ls script/templates`; do
+  sed -e "s;%TOKEN%;$TOKEN;g" -e "s;%TMPNBPATH%;$TMPNBPATH;g" script/templates/$SCRIPT > /etc/supervisor/conf.d/$SCRIPT
+done
