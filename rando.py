@@ -22,7 +22,14 @@ from tornado import gen, web
 from tornado import ioloop
 
 from tornado.httputil import url_concat
-from tornado.httpclient import HTTPRequest, AsyncHTTPClient, HTTPError
+from tornado.httpclient import HTTPRequest, HTTPError
+
+try:
+    from tornado.curl_httpclient import CurlAsyncHTTPClient as AsyncHTTPClient
+except ImportError as ie:
+    print(ie)
+    print("Unable to load CurlAsyncHTTPClient, falling back to AsyncHTTPClient")
+    from tornado.httpclient import AsyncHTTPClient
 
 def sample_with_replacement(a, size=12):
     '''Get a random path. If Python had sampling with replacement built in,
