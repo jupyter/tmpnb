@@ -8,6 +8,9 @@ docker pull jupyter/tmpnb
 
 ln -s `pwd` /srv/tmpnb
 
+chmod a+rX . -R
+chmod a+x node_modules/configurable-http-proxy/bin/configurable-http-proxy
+
 export TOKEN=$( head -c 30 /dev/urandom | xxd -p )
 echo "Your TOKEN for the configurable-http-proxy is $TOKEN"
 
