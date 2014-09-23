@@ -9,9 +9,12 @@
 
   <div class="jumbotron">
     <div class="container text-center">
-    <h1>Jupyter Demo</h1>
-    <p>Starting a new notebook server, just for you...<p>
-      </div>
+      <h1>Jupyter Demo</h1>
+      {% if path %}
+      <p>The server you requested is no longer running or it doesn't exist.</p>
+      {% end %}
+      <p>Starting a new notebook server, just for you...<p>
+    </div>
   </div>
 
   <script type="text/javascript">

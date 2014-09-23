@@ -77,7 +77,7 @@ def cull_idle(docker_client, proxy_token, delta=None):
 
 class LoadingHandler(RequestHandler):
     def get(self, path=None):
-        self.render("loading.html")
+        self.render("loading.html", path=path)
 
 class SpawnHandler(RequestHandler):
 
