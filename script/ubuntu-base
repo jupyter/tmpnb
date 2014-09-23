@@ -4,5 +4,5 @@ set -euo pipefail
 
 export DEBIAN_FRONTEND=noninteractive
 sudo apt-get update && apt-get upgrade -y
-sudo apt-get install -y nodejs-legacy build-essential curl python-pip python-dev supervisor npm
+sudo apt-get install -y nodejs-legacy build-essential curl python-pip python-dev supervisor npm libcurl4-openssl-dev
 curl -sSL https://get.docker.io/ubuntu/ | sudo sh
