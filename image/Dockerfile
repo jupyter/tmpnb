@@ -35,6 +35,16 @@ RUN pip install scikit-image vincent dill networkx mpi4py
 RUN apt-get install -y r-base r-base-dev r-cran-rcurl
 ADD R/ /srv/R/
 
+# Julia Installation
+RUN apt-get install software-properties-common python-software-properties -y
+RUN add-apt-repository ppa:staticfloat/juliareleases
+RUN add-apt-repository ppa:staticfloat/julia-deps
+RUN apt-get update
+RUN apt-get install julia -y
+# For now, using Carreau's branch to get IJulia
+RUN julia -e 'Pkg.clone("https://github.com/Carreau/IJulia.jl.git")'
+
+
 EXPOSE 8888
 
 ADD notebook.sh /usr/local/bin/notebook.sh 
