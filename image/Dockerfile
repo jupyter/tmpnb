@@ -41,9 +41,6 @@ RUN add-apt-repository ppa:staticfloat/juliareleases
 RUN add-apt-repository ppa:staticfloat/julia-deps
 RUN apt-get update
 RUN apt-get install julia -y
-# For now, using Carreau's branch to get IJulia
-RUN julia -e 'Pkg.clone("https://github.com/Carreau/IJulia.jl.git")'
-
 
 EXPOSE 8888
 
@@ -63,6 +60,12 @@ WORKDIR /home/jupyter/
 # IPython introductions
 ADD Welcome.ipynb /home/jupyter/
 RUN cp -r /srv/ipython/examples /home/jupyter/examples
+
+# For now, using Carreau's branch to get IJulia
+RUN julia -e 'Pkg.clone("https://github.com/Carreau/IJulia.jl.git")'
+RUN julia -e 'Pkg.checkout("IJulia", "kernelspec")'
+# Install the kernel
+RUN julia .julia/v0.3/IJulia/deps/kernelspec.jl
 
 # R installation
 # Copying files instead of adding due to current permissions issue with ADD
