@@ -102,7 +102,7 @@ class SpawnHandler(RequestHandler):
         yield self.wait_for_server("127.0.0.1", port, prefix)
 
         if path is None:
-            url = "/%s/tree" % prefix
+            url = "/%s/notebooks/Welcome.ipynb" % prefix
         else:
             url = path
             if not url.startswith('/'):
