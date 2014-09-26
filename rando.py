@@ -85,18 +85,22 @@ def cull_idle(docker_client, proxy_token, delta=None):
         app_log.debug("No stale routes to cull")
 
     for base_path, route in data.items():
-        container_id = route.get('container_id', None)
-        if container_id:
-            app_log.info("shutting down container %s at %s", container_id, base_path)
-            yield docker_client.kill(container_id)
-            yield docker_client.remove_container(container_id)
-        else:
-            app_log.error("No container found for %s", base_path)
+        try:
+            container_id = route.get('container_id', None)
+            if container_id:
+                app_log.info("shutting down container %s at %s", container_id, base_path)
+                yield docker_client.kill(container_id)
+                yield docker_client.remove_container(container_id)
+            else:
+                app_log.error("No container found for %s", base_path)
+        except Exception as e:
+            app_log.error("Failed to delete container on route %s: %s", base_path, e)
 
         app_log.info("removing %s from proxy", base_path)
         req = HTTPRequest(routes_url + base_path,
                           method="DELETE",
                           headers=headers)
+
         try:
             reply = yield http_client.fetch(req)
         except HTTPError as e:
