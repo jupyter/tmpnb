@@ -32,9 +32,11 @@ class AsyncDockerClient():
     '''Completely ridiculous wrapper for a Docker client that returns futures
     on every single docker method called on it.
     '''
-    def __init__(self, docker_client, max_workers=2):
+    def __init__(self, docker_client, executor=None):
+        if executor is None:
+            executor = ThreadPoolExecutor(max_workers=2)
         self._docker_client = docker_client
-        self.executor = ThreadPoolExecutor(max_workers=max_workers)
+        self.executor = executor
 
     def __getattr__(self, name):
         '''Creates a function, based on docker_client.name that returns a
