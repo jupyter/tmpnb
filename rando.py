@@ -30,7 +30,8 @@ AsyncHTTPClient.configure("tornado.curl_httpclient.CurlAsyncHTTPClient")
 
 class AsyncDockerClient():
     '''Completely ridiculous wrapper for a Docker client that returns futures
-    on every single docker method called on it.
+    on every single docker method called on it, configured with an executor.
+    If no executor is passed, it defaults ThreadPoolExecutor(max_workers=2).
     '''
     def __init__(self, docker_client, executor=None):
         if executor is None:
@@ -266,9 +267,11 @@ def main():
     blocking_docker_client = docker.Client(base_url=docker_host,
                                   version='1.12',
                                   timeout=10)
+
+    executor = ThreadPoolExecutor(max_workers=opts.max_dock_workers)
     
     async_docker_client = AsyncDockerClient(blocking_docker_client,
-                                            max_workers=opts.max_dock_workers)
+                                            executor)
 
     settings = dict(
         static_path=os.path.join(os.path.dirname(__file__), "static"),
