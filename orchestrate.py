@@ -217,7 +217,7 @@ def main():
     proxy_endpoint = os.environ.get('CONFIGPROXY_ENDPOINT', "http://localhost:8001")
     docker_host = os.environ.get('DOCKER_HOST', 'unix://var/run/docker.sock')
     
-    docker_client = docker.Client(base_url=docker_host, timeout=10)
+    blocking_docker_client = docker.Client(base_url=docker_host, timeout=10)
 
     executor = ThreadPoolExecutor(max_workers=opts.max_dock_workers)
     
