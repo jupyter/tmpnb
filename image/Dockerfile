@@ -35,6 +35,16 @@ RUN pip install scikit-image vincent dill networkx mpi4py
 RUN apt-get install -y r-base r-base-dev r-cran-rcurl
 ADD R/ /srv/R/
 
+# Julia Installation
+RUN apt-get install software-properties-common python-software-properties -y
+RUN add-apt-repository ppa:staticfloat/juliareleases
+RUN add-apt-repository ppa:staticfloat/julia-deps
+RUN apt-get update
+RUN apt-get install julia -y
+RUN apt-get install libnettle4
+
+ADD Julia/ /srv/Julia/
+
 EXPOSE 8888
 
 ADD notebook.sh /usr/local/bin/notebook.sh 
@@ -50,10 +60,6 @@ ENV USER jupyter
 
 WORKDIR /home/jupyter/
 
-# IPython introductions
-ADD Welcome.ipynb /home/jupyter/
-RUN cp -r /srv/ipython/examples /home/jupyter/examples
-
 # R installation
 # Copying files instead of adding due to current permissions issue with ADD
 RUN cp /srv/R/Renviron /home/jupyter/.Renviron
@@ -62,5 +68,19 @@ RUN mkdir /home/jupyter/.R/
 
 RUN cat /srv/R/install_kernel.R | R --no-save
 RUN cat /srv/R/install_pkgs.R   | R --no-save
+
+# IJulia installation
+RUN julia -e 'Pkg.add("IJulia")'
+# Julia packages
+RUN julia -e 'Pkg.add("Gadfly")'
+
+# Install kernel directly (for now)
+RUN mkdir -p /home/jupyter/.ipython/kernels/julia/
+RUN cp /srv/Julia/kernel.json /home/jupyter/.ipython/kernels/julia/kernel.json
+
+# Example notebooks 
+ADD Welcome.ipynb /home/jupyter/
+RUN cp -r /srv/ipython/examples /home/jupyter/ipython_examples
+
 
 CMD ["/usr/local/bin/notebook.sh"]
