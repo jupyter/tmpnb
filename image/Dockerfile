@@ -60,10 +60,6 @@ ENV USER jupyter
 
 WORKDIR /home/jupyter/
 
-# IPython introductions
-ADD Welcome.ipynb /home/jupyter/
-RUN cp -r /srv/ipython/examples /home/jupyter/examples
-
 # R installation
 # Copying files instead of adding due to current permissions issue with ADD
 RUN cp /srv/R/Renviron /home/jupyter/.Renviron
@@ -77,8 +73,14 @@ RUN cat /srv/R/install_pkgs.R   | R --no-save
 RUN julia -e 'Pkg.add("IJulia")'
 # Julia packages
 RUN julia -e 'Pkg.add("Gadfly")'
+
 # Install kernel directly (for now)
 RUN mkdir -p /home/jupyter/.ipython/kernels/julia/
 RUN cp /srv/Julia/kernel.json /home/jupyter/.ipython/kernels/julia/kernel.json
+
+# Example notebooks 
+ADD Welcome.ipynb /home/jupyter/
+RUN cp -r /srv/ipython/examples /home/jupyter/ipython_examples
+
 
 CMD ["/usr/local/bin/notebook.sh"]
