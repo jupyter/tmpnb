@@ -11,6 +11,8 @@ import string
 import time
 import uuid
 
+from concurrent.futures import ThreadPoolExecutor
+
 import docker
 
 import tornado
@@ -25,6 +27,32 @@ from tornado.httputil import url_concat
 from tornado.httpclient import HTTPRequest, HTTPError, AsyncHTTPClient
 
 AsyncHTTPClient.configure("tornado.curl_httpclient.CurlAsyncHTTPClient")
+
+class AsyncDockerClient():
+    '''Completely ridiculous wrapper for a Docker client that returns futures
+    on every single docker method called on it, configured with an executor.
+    If no executor is passed, it defaults ThreadPoolExecutor(max_workers=2).
+    '''
+    def __init__(self, docker_client, executor=None):
+        if executor is None:
+            executor = ThreadPoolExecutor(max_workers=2)
+        self._docker_client = docker_client
+        self.executor = executor
+
+    def __getattr__(self, name):
+        '''Creates a function, based on docker_client.name that returns a
+        Future. If name is not a callable, returns the attribute directly.
+        '''
+        fn = getattr(self._docker_client, name)
+
+        # Make sure it really is a function first
+        if not callable(fn):
+            return fn
+
+        def method(*args, **kwargs):
+            return self.executor.submit(fn, *args, **kwargs)
+
+        return method
 
 def sample_with_replacement(a, size=12):
     '''Get a random path. If Python had sampling with replacement built in,
@@ -60,18 +88,22 @@ def cull_idle(docker_client, proxy_token, delta=None):
         app_log.debug("No stale routes to cull")
 
     for base_path, route in data.items():
-        container_id = route.get('container_id', None)
-        if container_id:
-            app_log.info("shutting down container %s at %s", container_id, base_path)
-            docker_client.kill(container_id)
-            docker_client.remove_container(container_id)
-        else:
-            app_log.error("No container found for %s", base_path)
+        try:
+            container_id = route.get('container_id', None)
+            if container_id:
+                app_log.info("shutting down container %s at %s", container_id, base_path)
+                yield docker_client.kill(container_id)
+                yield docker_client.remove_container(container_id)
+            else:
+                app_log.error("No container found for %s", base_path)
+        except Exception as e:
+            app_log.error("Failed to delete container on route %s: %s", base_path, e)
 
         app_log.info("removing %s from proxy", base_path)
         req = HTTPRequest(routes_url + base_path,
                           method="DELETE",
                           headers=headers)
+
         try:
             reply = yield http_client.fetch(req)
         except HTTPError as e:
@@ -94,7 +126,7 @@ class SpawnHandler(RequestHandler):
 
         self.write("Initializing {}".format(prefix))
 
-        container_id, port = self.create_notebook_server(prefix)
+        container_id, port = yield self.create_notebook_server(prefix)
 
         yield self.proxy(port, prefix, container_id)
 
@@ -165,6 +197,7 @@ class SpawnHandler(RequestHandler):
     def container_ip(self):
         return self.settings['container_ip']
 
+    @gen.coroutine
     def create_notebook_server(self, base_path):
         '''
         POST /containers/create
@@ -174,15 +207,16 @@ class SpawnHandler(RequestHandler):
         docker_client = self.docker_client
 
         env = {"RAND_BASE": base_path}
-        resp = docker_client.create_container(image="jupyter/tmpnb",
+        resp = yield docker_client.create_container(image="jupyter/tmpnb",
                                               environment=env)
         container_id = resp['Id']
         app_log.info("Created container {}".format(container_id))
 
-        docker_client.start(container_id, port_bindings={8888: (self.container_ip,)})
-        port = docker_client.port(container_id, 8888)[0]['HostPort']
+        yield docker_client.start(container_id, port_bindings={8888: (self.container_ip,)})
+        ports = yield docker_client.port(container_id, 8888)
+        port = ports[0]['HostPort']
 
-        return container_id, int(port)
+        raise gen.Return((container_id, int(port)))
 
     @gen.coroutine
     def proxy(self, port, base_path, container_id):
@@ -214,6 +248,9 @@ def main():
     tornado.options.define('port', default=9999,
         help="port for the main server to listen on"
     )
+    tornado.options.define('max_dock_workers', default=24,
+        help="maximum number of docker workers"
+    )
     tornado.options.parse_command_line()
     opts = tornado.options.options
 
@@ -227,9 +264,14 @@ def main():
     proxy_endpoint = os.environ.get('CONFIGPROXY_ENDPOINT', "http://localhost:8001")
     docker_host = os.environ.get('DOCKER_HOST', 'unix://var/run/docker.sock')
     
-    docker_client = docker.Client(base_url=docker_host,
+    blocking_docker_client = docker.Client(base_url=docker_host,
                                   version='1.12',
                                   timeout=10)
+
+    executor = ThreadPoolExecutor(max_workers=opts.max_dock_workers)
+    
+    async_docker_client = AsyncDockerClient(blocking_docker_client,
+                                            executor)
 
     settings = dict(
         static_path=os.path.join(os.path.dirname(__file__), "static"),
@@ -237,7 +279,7 @@ def main():
         xsrf_cookies=True,
         debug=True,
         autoescape=None,
-        docker_client=docker_client,
+        docker_client=async_docker_client,
         container_ip = opts.container_ip,
         proxy_token=proxy_token,
         template_path=os.path.join(os.path.dirname(__file__), 'templates'),
@@ -252,7 +294,7 @@ def main():
         cull_ms = cull_timeout * 1e3
         app_log.info("Culling every %i seconds", cull_timeout)
         culler = tornado.ioloop.PeriodicCallback(
-            lambda : cull_idle(docker_client, proxy_token, delta),
+            lambda : cull_idle(async_docker_client, proxy_token, delta),
             cull_ms
         )
         culler.start()
