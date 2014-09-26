@@ -27,6 +27,10 @@ RUN python setup.py submodule
 RUN pip2 install .
 RUN pip3 install .
 
+# Dependencies for the example notebooks
+RUN apt-get build-dep -y mpi4py
+RUN pip install scikit-image vincent dill networkx mpi4py
+
 # Install R and the R kernel
 RUN apt-get install -y r-base r-base-dev r-cran-rcurl
 ADD R/ /srv/R/
