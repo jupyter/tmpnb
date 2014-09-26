@@ -29,11 +29,17 @@ from tornado.httpclient import HTTPRequest, HTTPError, AsyncHTTPClient
 AsyncHTTPClient.configure("tornado.curl_httpclient.CurlAsyncHTTPClient")
 
 class AsyncDockerClient():
+    '''Completely ridiculous wrapper for a Docker client that returns futures
+    on every single docker method called on it.
+    '''
     def __init__(self, docker_client, max_workers=1):
         self._docker_client = docker_client
         self.executor = ThreadPoolExecutor(max_workers=max_workers)
 
     def __getattr__(self, name):
+        '''Tries to find out if name references a function, returns if not a
+        callable
+        '''
         attr = getattr(self._docker_client, name)
 
         # Find out if the attribute being requested is callable
@@ -252,7 +258,7 @@ def main():
                                   version='1.12',
                                   timeout=10)
     
-    async_docker_client = AsyncDockerClient(blocking_docker_client)
+    async_docker_client = AsyncDockerClient(blocking_docker_client, max_workers=64)
 
     settings = dict(
         static_path=os.path.join(os.path.dirname(__file__), "static"),
