@@ -43,6 +43,8 @@ RUN apt-get update
 RUN apt-get install julia -y
 RUN apt-get install libnettle4
 
+ADD Julia/ /srv/Julia/
+
 EXPOSE 8888
 
 ADD notebook.sh /usr/local/bin/notebook.sh 
@@ -62,10 +64,6 @@ WORKDIR /home/jupyter/
 ADD Welcome.ipynb /home/jupyter/
 RUN cp -r /srv/ipython/examples /home/jupyter/examples
 
-# For now, using Carreau's branch to get IJulia
-RUN julia -e 'Pkg.clone("https://github.com/Carreau/IJulia.jl.git")'
-RUN julia -e 'Pkg.checkout("IJulia", "kernelspec")'
-
 # R installation
 # Copying files instead of adding due to current permissions issue with ADD
 RUN cp /srv/R/Renviron /home/jupyter/.Renviron
@@ -74,5 +72,13 @@ RUN mkdir /home/jupyter/.R/
 
 RUN cat /srv/R/install_kernel.R | R --no-save
 RUN cat /srv/R/install_pkgs.R   | R --no-save
+
+# IJulia installation
+RUN julia -e 'Pkg.add("IJulia")'
+# Julia packages
+RUN julia -e 'Pkg.add("Gadfly")'
+# Install kernel directly (for now)
+RUN mkdir -p /home/jupyter/.ipython/kernels/julia/
+RUN cp /srv/Julia/kernel.json /home/jupyter/.ipython/kernels/julia/kernel.json
 
 CMD ["/usr/local/bin/notebook.sh"]
