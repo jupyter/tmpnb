@@ -60,15 +60,6 @@ ENV USER jupyter
 
 WORKDIR /home/jupyter/
 
-# R installation
-# Copying files instead of adding due to current permissions issue with ADD
-RUN cp /srv/R/Renviron /home/jupyter/.Renviron
-RUN cp /srv/R/Rprofile /home/jupyter/.Rprofile
-RUN mkdir /home/jupyter/.R/
-
-RUN cat /srv/R/install_kernel.R | R --no-save
-RUN cat /srv/R/install_pkgs.R   | R --no-save
-
 # IJulia installation
 RUN julia -e 'Pkg.add("IJulia")'
 # Julia packages
@@ -77,6 +68,15 @@ RUN julia -e 'Pkg.add("Gadfly")'
 # Install kernel directly (for now)
 RUN mkdir -p /home/jupyter/.ipython/kernels/julia/
 RUN cp /srv/Julia/kernel.json /home/jupyter/.ipython/kernels/julia/kernel.json
+
+# R installation
+# Copying files instead of adding due to current permissions issue with ADD
+RUN cp /srv/R/Renviron /home/jupyter/.Renviron
+RUN cp /srv/R/Rprofile /home/jupyter/.Rprofile
+RUN mkdir /home/jupyter/.R/
+
+RUN cat /srv/R/install_kernel.R | R --no-save
+RUN cat /srv/R/install_pkgs.R   | R --no-save
 
 # Example notebooks 
 ADD Welcome.ipynb /home/jupyter/
