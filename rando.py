@@ -11,6 +11,8 @@ import string
 import time
 import uuid
 
+from concurrent.futures import ThreadPoolExecutor
+
 import docker
 
 import tornado
@@ -25,6 +27,23 @@ from tornado.httputil import url_concat
 from tornado.httpclient import HTTPRequest, HTTPError, AsyncHTTPClient
 
 AsyncHTTPClient.configure("tornado.curl_httpclient.CurlAsyncHTTPClient")
+
+class AsyncDockerClient():
+    def __init__(self, docker_client, max_workers=1):
+        self._docker_client = docker_client
+        self.executor = ThreadPoolExecutor(max_workers=max_workers)
+
+    def __getattr__(self, name):
+        attr = getattr(self._docker_client, name)
+
+        # Find out if the attribute being requested is callable
+        if not hasattr(attr, '__call__'):
+            return attr
+
+        fn = attr
+        def method(*args, **kwargs):
+            return self.executor.submit(fn, *args, **kwargs)
+        return method
 
 def sample_with_replacement(a, size=12):
     '''Get a random path. If Python had sampling with replacement built in,
@@ -63,8 +82,8 @@ def cull_idle(docker_client, proxy_token, delta=None):
         container_id = route.get('container_id', None)
         if container_id:
             app_log.info("shutting down container %s at %s", container_id, base_path)
-            docker_client.kill(container_id)
-            docker_client.remove_container(container_id)
+            yield docker_client.kill(container_id)
+            yield docker_client.remove_container(container_id)
         else:
             app_log.error("No container found for %s", base_path)
 
@@ -94,7 +113,7 @@ class SpawnHandler(RequestHandler):
 
         self.write("Initializing {}".format(prefix))
 
-        container_id, port = self.create_notebook_server(prefix)
+        container_id, port = yield self.create_notebook_server(prefix)
 
         yield self.proxy(port, prefix, container_id)
 
@@ -165,6 +184,7 @@ class SpawnHandler(RequestHandler):
     def container_ip(self):
         return self.settings['container_ip']
 
+    @gen.coroutine
     def create_notebook_server(self, base_path):
         '''
         POST /containers/create
@@ -174,15 +194,16 @@ class SpawnHandler(RequestHandler):
         docker_client = self.docker_client
 
         env = {"RAND_BASE": base_path}
-        resp = docker_client.create_container(image="jupyter/tmpnb",
+        resp = yield docker_client.create_container(image="jupyter/tmpnb",
                                               environment=env)
         container_id = resp['Id']
         app_log.info("Created container {}".format(container_id))
 
-        docker_client.start(container_id, port_bindings={8888: (self.container_ip,)})
-        port = docker_client.port(container_id, 8888)[0]['HostPort']
+        yield docker_client.start(container_id, port_bindings={8888: (self.container_ip,)})
+        ports = yield docker_client.port(container_id, 8888)
+        port = ports[0]['HostPort']
 
-        return container_id, int(port)
+        raise gen.Return((container_id, int(port)))
 
     @gen.coroutine
     def proxy(self, port, base_path, container_id):
@@ -227,9 +248,11 @@ def main():
     proxy_endpoint = os.environ.get('CONFIGPROXY_ENDPOINT', "http://localhost:8001")
     docker_host = os.environ.get('DOCKER_HOST', 'unix://var/run/docker.sock')
     
-    docker_client = docker.Client(base_url=docker_host,
+    blocking_docker_client = docker.Client(base_url=docker_host,
                                   version='1.12',
                                   timeout=10)
+    
+    async_docker_client = AsyncDockerClient(blocking_docker_client)
 
     settings = dict(
         static_path=os.path.join(os.path.dirname(__file__), "static"),
@@ -237,7 +260,7 @@ def main():
         xsrf_cookies=True,
         debug=True,
         autoescape=None,
-        docker_client=docker_client,
+        docker_client=async_docker_client,
         container_ip = opts.container_ip,
         proxy_token=proxy_token,
         template_path=os.path.join(os.path.dirname(__file__), 'templates'),
