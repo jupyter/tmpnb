@@ -32,23 +32,23 @@ class AsyncDockerClient():
     '''Completely ridiculous wrapper for a Docker client that returns futures
     on every single docker method called on it.
     '''
-    def __init__(self, docker_client, max_workers=1):
+    def __init__(self, docker_client, max_workers=2):
         self._docker_client = docker_client
         self.executor = ThreadPoolExecutor(max_workers=max_workers)
 
     def __getattr__(self, name):
-        '''Tries to find out if name references a function, returns if not a
-        callable
+        '''Creates a function, based on docker_client.name that returns a
+        Future. If name is not a callable, returns the attribute directly.
         '''
-        attr = getattr(self._docker_client, name)
+        fn = getattr(self._docker_client, name)
 
-        # Find out if the attribute being requested is callable
-        if not hasattr(attr, '__call__'):
-            return attr
+        # Make sure it really is a function first
+        if not callable(fn):
+            return fn
 
-        fn = attr
         def method(*args, **kwargs):
             return self.executor.submit(fn, *args, **kwargs)
+
         return method
 
 def sample_with_replacement(a, size=12):
@@ -245,6 +245,9 @@ def main():
     tornado.options.define('port', default=9999,
         help="port for the main server to listen on"
     )
+    tornado.options.define('max_dock_workers', default=24,
+        help="maximum number of docker workers"
+    )
     tornado.options.parse_command_line()
     opts = tornado.options.options
 
@@ -262,7 +265,8 @@ def main():
                                   version='1.12',
                                   timeout=10)
     
-    async_docker_client = AsyncDockerClient(blocking_docker_client, max_workers=64)
+    async_docker_client = AsyncDockerClient(blocking_docker_client,
+                                            max_workers=opts.max_dock_workers)
 
     settings = dict(
         static_path=os.path.join(os.path.dirname(__file__), "static"),
