@@ -26,6 +26,8 @@ from tornado import ioloop
 from tornado.httputil import url_concat
 from tornado.httpclient import HTTPRequest, HTTPError, AsyncHTTPClient
 
+from dockworker import cull_idle
+
 AsyncHTTPClient.configure("tornado.curl_httpclient.CurlAsyncHTTPClient")
 
 class AsyncDockerClient():
@@ -59,55 +61,6 @@ def sample_with_replacement(a, size=12):
     I would use that. The other alternative is numpy.random.choice, but
     numpy is overkill for this tiny bit of random pathing.'''
     return "".join([random.choice(a) for x in range(size)])
-
-@gen.coroutine
-def cull_idle(docker_client, proxy_token, delta=None):
-    if delta is None:
-        delta = datetime.timedelta(minutes=60)
-    http_client = AsyncHTTPClient()
-
-    dt = datetime.datetime.utcnow() - delta
-    timestamp = dt.isoformat() + 'Z'
-
-    routes_url = "http://localhost:8001/api/routes"
-
-    url = url_concat(routes_url,
-                     {'inactive_since': timestamp})
-
-    headers = {"Authorization": "token {}".format(proxy_token)}
-
-    app_log.debug("Fetching %s", url)
-    req = HTTPRequest(url,
-                      method="GET",
-                      headers=headers)
-
-    reply = yield http_client.fetch(req)
-    data = json.loads(reply.body.decode('utf8', 'replace'))
-
-    if not data:
-        app_log.debug("No stale routes to cull")
-
-    for base_path, route in data.items():
-        try:
-            container_id = route.get('container_id', None)
-            if container_id:
-                app_log.info("shutting down container %s at %s", container_id, base_path)
-                yield docker_client.kill(container_id)
-                yield docker_client.remove_container(container_id)
-            else:
-                app_log.error("No container found for %s", base_path)
-        except Exception as e:
-            app_log.error("Failed to delete container on route %s: %s", base_path, e)
-
-        app_log.info("removing %s from proxy", base_path)
-        req = HTTPRequest(routes_url + base_path,
-                          method="DELETE",
-                          headers=headers)
-
-        try:
-            reply = yield http_client.fetch(req)
-        except HTTPError as e:
-            app_log.error("Failed to delete route %s: %s", base_path, e)
 
 class LoadingHandler(RequestHandler):
     def get(self, path=None):
@@ -264,9 +217,7 @@ def main():
     proxy_endpoint = os.environ.get('CONFIGPROXY_ENDPOINT', "http://localhost:8001")
     docker_host = os.environ.get('DOCKER_HOST', 'unix://var/run/docker.sock')
     
-    blocking_docker_client = docker.Client(base_url=docker_host,
-                                  version='1.12',
-                                  timeout=10)
+    docker_client = docker.Client(base_url=docker_host, timeout=10)
 
     executor = ThreadPoolExecutor(max_workers=opts.max_dock_workers)
     
