@@ -8,7 +8,8 @@ MAINTAINER IPython Project <ipython-dev@scipy.org>
 
 # The ipython/ipython image has the full working copy of IPython
 WORKDIR /srv/ipython/
-RUN chmod a+rw /srv/ipython/examples
+RUN chmod a+rwX /srv/ipython/examples
+ADD notebooks/ /srv/notebooks/
 
 # Add Google Analytics templates
 ADD ga/ /srv/ga/
@@ -35,6 +36,8 @@ EXPOSE 8888
 
 ADD notebook.sh /usr/local/bin/notebook.sh 
 RUN chmod a+x /usr/local/bin/notebook.sh
+
+RUN chmod a+rX /srv/R/ -R
 
 # jupyter is our user
 RUN useradd -m -s /bin/bash jupyter
@@ -65,7 +68,9 @@ RUN cat /srv/R/install_kernel.R | R --no-save
 RUN cat /srv/R/install_pkgs.R   | R --no-save
 
 # Example notebooks 
-ADD Welcome.ipynb /home/jupyter/
 RUN cp -r /srv/ipython/examples /home/jupyter/ipython_examples
+RUN cp -r /srv/notebooks/* /home/jupyter/
+
+RUN chown -R jupyter:jupyter /home/jupyter
 
 CMD ["/usr/local/bin/notebook.sh"]
