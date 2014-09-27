@@ -6,26 +6,12 @@ FROM ipython/scipystack
 
 MAINTAINER IPython Project <ipython-dev@scipy.org>
 
-# Can't directly add the source as it won't have the submodules
-RUN mkdir -p /srv/
-WORKDIR /srv/
-RUN git clone --recursive --depth 1 https://github.com/ipython/ipython.git
+# The ipython/ipython image has the full working copy of IPython
 WORKDIR /srv/ipython/
 RUN chmod a+rw /srv/ipython/examples
 
 # Add Google Analytics templates
 ADD ga/ /srv/ga/
-
-# Installing certain dependencies directly
-RUN pip2 install fabric
-RUN pip3 install jsonschema jsonpointer fabric
-
-RUN python setup.py submodule
-
-# .[all] only works with -e
-# Can't use -e because ipython2 and ipython3 will clobber each other
-RUN pip2 install .
-RUN pip3 install .
 
 # Dependencies for the example notebooks
 RUN apt-get build-dep -y mpi4py
@@ -81,6 +67,5 @@ RUN cat /srv/R/install_pkgs.R   | R --no-save
 # Example notebooks 
 ADD Welcome.ipynb /home/jupyter/
 RUN cp -r /srv/ipython/examples /home/jupyter/ipython_examples
-
 
 CMD ["/usr/local/bin/notebook.sh"]
