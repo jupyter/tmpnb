@@ -176,7 +176,7 @@ class SpawnHandler(RequestHandler):
         command = [
             "/bin/sh",
             "-c",
-            "ipython3 notebook --no-browser --port 8888 --ip=0.0.0.0 --NotebookApp.base_url=/$RAND_BASE --NotebookApp.webapp_settings=\"{'template_path':['/srv/ga/', '/srv/ipython/IPython/html', '/srv/ipython/IPython/html/templates']}\""
+            "ipython3 notebook --no-browser --port 8888 --ip=0.0.0.0 --NotebookApp.base_url=/$RAND_BASE --NotebookApp.tornado_settings=\"{'template_path':['/srv/ga/', '/srv/ipython/IPython/html', '/srv/ipython/IPython/html/templates']}\""
         ]
 
         resp = yield docker_client.create_container(image=self.image,
