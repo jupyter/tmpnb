@@ -154,6 +154,10 @@ class SpawnHandler(RequestHandler):
     def mem_limit(self):
         return self.settings['mem_limit']
 
+    @property
+    def cpu_shares(self):
+        return self.settings['cpu_shares']
+
     @gen.coroutine
     def create_notebook_server(self, base_path):
         '''
@@ -166,7 +170,13 @@ class SpawnHandler(RequestHandler):
         env = {"RAND_BASE": base_path}
         resp = yield docker_client.create_container(image="jupyter/tmpnb",
                                                     environment=env,
-                                                    mem_limit=self.mem_limit)
+                                                    mem_limit=self.mem_limit,
+                                                    cpu_shares=self.cpu_shares)
+
+        docker_warnings = resp['Warnings']
+        if docker_warnings is not None:
+            app_log.warn(docker_warnings)
+
         container_id = resp['Id']
         app_log.info("Created container {}".format(container_id))
 
@@ -209,8 +219,11 @@ def main():
     tornado.options.define('max_dock_workers', default=24,
         help="Maximum number of docker workers"
     )
-    tornado.options.define('mem_limit', default='512m',
+    tornado.options.define('mem_limit', default="512m",
         help="Limit on Memory, per container"
+    )
+    tornado.options.define('cpu_shares', default=None,
+        help="Limit CPU shares, per container"
     )
 
     tornado.options.parse_command_line()
@@ -245,6 +258,7 @@ def main():
         template_path=os.path.join(os.path.dirname(__file__), 'templates'),
         proxy_endpoint=proxy_endpoint,
         mem_limit=opts.mem_limit,
+        cpu_shares=opts.cpu_shares,
     )
     
     # check for idle containers and cull them
