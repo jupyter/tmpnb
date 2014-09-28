@@ -53,6 +53,7 @@ WORKDIR /home/jupyter/
 RUN julia -e 'Pkg.add("IJulia")'
 # Julia packages
 RUN julia -e 'Pkg.add("Gadfly")'
+RUN julia -e 'Pkg.add("RDatasets")'
 
 # Install kernel directly (for now)
 RUN mkdir -p /home/jupyter/.ipython/kernels/julia/
