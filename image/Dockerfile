@@ -15,20 +15,19 @@ ADD notebooks/ /srv/notebooks/
 ADD ga/ /srv/ga/
 
 # Dependencies for the example notebooks
-RUN apt-get build-dep -y mpi4py
-RUN pip install scikit-image vincent dill networkx mpi4py
+RUN apt-get build-dep -y mpi4py && pip install scikit-image vincent dill networkx mpi4py
 
 # Install R and the R kernel
 RUN apt-get install -y r-base r-base-dev r-cran-rcurl
 ADD R/ /srv/R/
 
 # Julia Installation
-RUN apt-get install software-properties-common python-software-properties -y
-RUN add-apt-repository ppa:staticfloat/juliareleases
-RUN add-apt-repository ppa:staticfloat/julia-deps
-RUN apt-get update
-RUN apt-get install julia -y
-RUN apt-get install libnettle4
+RUN apt-get install software-properties-common python-software-properties -y && \
+    add-apt-repository ppa:staticfloat/juliareleases && \
+    add-apt-repository ppa:staticfloat/julia-deps && \
+    apt-get update && \
+    apt-get install julia -y && \
+    apt-get install libnettle4
 
 ADD Julia/ /srv/Julia/
 
@@ -52,8 +51,7 @@ WORKDIR /home/jupyter/
 # IJulia installation
 RUN julia -e 'Pkg.add("IJulia")'
 # Julia packages
-RUN julia -e 'Pkg.add("Gadfly")'
-RUN julia -e 'Pkg.add("RDatasets")'
+RUN julia /srv/Julia/install_pkgs.jl
 
 # Install kernel directly (for now)
 RUN mkdir -p /home/jupyter/.ipython/kernels/julia/
