@@ -158,6 +158,10 @@ class SpawnHandler(RequestHandler):
     def cpu_shares(self):
         return self.settings['cpu_shares']
 
+    @property
+    def image(self):
+        return self.settings['image']
+
     @gen.coroutine
     def create_notebook_server(self, base_path):
         '''
@@ -168,7 +172,15 @@ class SpawnHandler(RequestHandler):
         docker_client = self.docker_client
 
         env = {"RAND_BASE": base_path}
-        resp = yield docker_client.create_container(image="jupyter/tmpnb",
+
+        command = [
+            "/bin/sh",
+            "-c",
+            "ipython3 notebook --no-browser --port 8888 --ip=0.0.0.0 --NotebookApp.base_url=/$RAND_BASE --NotebookApp.webapp_settings=\"{'template_path':['/srv/ga/', '/srv/ipython/IPython/html', '/srv/ipython/IPython/html/templates']}\""
+        ]
+
+        resp = yield docker_client.create_container(image=self.image,
+                                                    command=command,
                                                     environment=env,
                                                     mem_limit=self.mem_limit,
                                                     cpu_shares=self.cpu_shares)
@@ -225,6 +237,9 @@ def main():
     tornado.options.define('cpu_shares', default=None,
         help="Limit CPU shares, per container"
     )
+    tornado.options.define('image', default="jupyter/tmpnb",
+        help="Docker container to spawn for new users. Must be on the system already"
+    )
 
     tornado.options.parse_command_line()
     opts = tornado.options.options
@@ -259,6 +274,7 @@ def main():
         proxy_endpoint=proxy_endpoint,
         mem_limit=opts.mem_limit,
         cpu_shares=opts.cpu_shares,
+        image=opts.image,
     )
     
     # check for idle containers and cull them
