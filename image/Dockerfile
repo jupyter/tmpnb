@@ -33,9 +33,6 @@ ADD Julia/ /srv/Julia/
 
 EXPOSE 8888
 
-ADD notebook.sh /usr/local/bin/notebook.sh 
-RUN chmod a+x /usr/local/bin/notebook.sh
-
 RUN chmod a+rX /srv/R/ -R
 
 # jupyter is our user
