@@ -205,7 +205,7 @@ class SpawnHandler(RequestHandler):
 
         proxy_endpoint = self.proxy_endpoint + "/api/routes/{}".format(base_path)
         body = json.dumps({
-            "target": "http://localhost:{}".format(port),
+            "target": "http://127.0.0.1:{}".format(port),
             "container_id": container_id,
         })
 
@@ -251,7 +251,7 @@ def main():
     ]
 
     proxy_token = os.environ['CONFIGPROXY_AUTH_TOKEN']
-    proxy_endpoint = os.environ.get('CONFIGPROXY_ENDPOINT', "http://localhost:8001")
+    proxy_endpoint = os.environ.get('CONFIGPROXY_ENDPOINT', "http://127.0.0.1:8001")
     docker_host = os.environ.get('DOCKER_HOST', 'unix://var/run/docker.sock')
     
     blocking_docker_client = docker.Client(base_url=docker_host, timeout=10)

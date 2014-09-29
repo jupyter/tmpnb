@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
 export CONFIGPROXY_AUTH_TOKEN=`head -c 30 /dev/urandom | xxd -p`
-node_modules/.bin/configurable-http-proxy --default-target=http://localhost:9999 &
+node_modules/.bin/configurable-http-proxy --default-target=http://127.0.0.1:9999 &
 python orchestrate.py $@
 kill %%
