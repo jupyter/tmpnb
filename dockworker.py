@@ -41,8 +41,8 @@ def cull_idle(docker_client, proxy_token, delta=None):
         if container_id:
             app_log.info("shutting down container %s at %s", container_id, base_path)
             try:
-                docker_client.kill(container_id)
-                docker_client.remove_container(container_id)
+                yield docker_client.kill(container_id)
+                yield docker_client.remove_container(container_id)
             except Exception as e:
                 app_log.error("Unable to cull {}: {}".format(container_id, e))
         else:
