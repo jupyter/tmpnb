@@ -15,7 +15,7 @@ ADD notebooks/ /srv/notebooks/
 ADD ga/ /srv/ga/
 
 # Dependencies for the example notebooks
-RUN apt-get build-dep -y mpi4py && pip install scikit-image vincent dill networkx mpi4py
+RUN apt-get build-dep -y mpi4py && pip2 install scikit-image vincent dill networkx mpi4py && pip3 install scikit-image vincent dill networkx mpi4py
 
 # Install R and the R kernel
 RUN apt-get install -y r-base r-base-dev r-cran-rcurl
