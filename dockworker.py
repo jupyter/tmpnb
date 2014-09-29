@@ -18,7 +18,7 @@ def cull_idle(docker_client, proxy_token, delta=None):
     dt = datetime.datetime.utcnow() - delta
     timestamp = dt.isoformat() + 'Z'
 
-    routes_url = "http://localhost:8001/api/routes"
+    routes_url = "http://127.0.0.1:8001/api/routes"
 
     url = url_concat(routes_url,
                      {'inactive_since': timestamp})
