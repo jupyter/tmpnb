@@ -9,9 +9,11 @@ Launches "temporary" IPython notebook servers.
 
 #### Installation
 
-Our bootstrap script is only built for Ubuntu 14.04 currently.
+Our bootstrap script is only built for Ubuntu 14.04 currently and must be installed within `/srv/tmpnb`.
 
 ```
+mkdir -p /srv/
+cd /srv/
 git clone https://github.com/jupyter/tmpnb.git
 cd tmpnb
 script/bootstrap
