@@ -37,3 +37,13 @@ npm install jupyter/configurable-http-proxy
 # Runs on all interfaces on port 8000 by default.
 script/dev
 ```
+
+#### Contain Yourself
+
+These are working instructions for running everything in Docker (to assist in running on Docker only setups, like CoreOS).
+
+```
+docker run --net=host -d -e CONFIGPROXY_AUTH_TOKEN=legit jupyter/configurable-http-proxy --default-target http://127.0.0.1:9999
+docker run --net=host -d -e CONFIGPROXY_AUTH_TOKEN=legit -v /var/run/docker.sock:/docker.sock jupyter/tmpnb-orc
+```
+
