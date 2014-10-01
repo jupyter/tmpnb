@@ -14,6 +14,7 @@ import uuid
 from concurrent.futures import ThreadPoolExecutor
 
 import docker
+import docker.errors
 
 import tornado
 import tornado.options
@@ -79,12 +80,12 @@ class SpawnHandler(RequestHandler):
 
         self.write("Initializing {}".format(prefix))
 
-        container_id, port = yield self.create_notebook_server(prefix)
+        container_id, ip, port = yield self.create_notebook_server(prefix)
 
-        yield self.proxy(port, prefix, container_id)
+        yield self.proxy(ip, port, prefix, container_id)
 
         # Wait for the notebook server to come up.
-        yield self.wait_for_server("127.0.0.1", port, prefix)
+        yield self.wait_for_server(ip, port, prefix)
 
         if path is None:
             url = "/%s/notebooks/Welcome.ipynb" % prefix
@@ -151,6 +152,10 @@ class SpawnHandler(RequestHandler):
         return self.settings['container_ip']
 
     @property
+    def container_port(self):
+        return self.settings['container_port']
+
+    @property
     def mem_limit(self):
         return self.settings['mem_limit']
 
@@ -162,6 +167,10 @@ class SpawnHandler(RequestHandler):
     def image(self):
         return self.settings['image']
 
+    @property
+    def ipython_executable(self):
+        return self.settings['ipython_executable']
+
     @gen.coroutine
     def create_notebook_server(self, base_path):
         '''
@@ -171,17 +180,26 @@ class SpawnHandler(RequestHandler):
 
         docker_client = self.docker_client
 
-        env = {"RAND_BASE": base_path}
+        ipython_executable = self.ipython_executable
+
+        ipython_args = [
+                "notebook", "--no-browser",
+                "--port {}".format(self.container_port),
+                "--ip=0.0.0.0",
+                "--NotebookApp.base_url=/{}".format(base_path),
+                "--NotebookApp.tornado_settings=\"{'template_path':['/srv/ga/', '/srv/ipython/IPython/html', '/srv/ipython/IPython/html/templates']}\""
+        ]
+
+        ipython_command = ipython_executable + " " + " ".join(ipython_args)
 
         command = [
             "/bin/sh",
             "-c",
-            "ipython3 notebook --no-browser --port 8888 --ip=0.0.0.0 --NotebookApp.base_url=/$RAND_BASE --NotebookApp.tornado_settings=\"{'template_path':['/srv/ga/', '/srv/ipython/IPython/html', '/srv/ipython/IPython/html/templates']}\""
+            ipython_command
         ]
 
         resp = yield docker_client.create_container(image=self.image,
                                                     command=command,
-                                                    environment=env,
                                                     mem_limit=self.mem_limit,
                                                     cpu_shares=self.cpu_shares)
 
@@ -192,20 +210,28 @@ class SpawnHandler(RequestHandler):
         container_id = resp['Id']
         app_log.info("Created container {}".format(container_id))
 
-        yield docker_client.start(container_id, port_bindings={8888: (self.container_ip,)})
-        ports = yield docker_client.port(container_id, 8888)
-        port = ports[0]['HostPort']
+        app_log.debug(self.container_ip, self.container_port)
 
-        raise gen.Return((container_id, int(port)))
+        yield docker_client.start(container_id,
+                                  port_bindings={self.container_port: (self.container_ip,)})
+
+        container_network = yield docker_client.port(container_id,
+                                                     self.container_port)
+
+        port = container_network[0]['HostPort']
+        ip = container_network[0]['HostIp']
+
+        raise gen.Return((container_id, ip, int(port)))
 
     @gen.coroutine
-    def proxy(self, port, base_path, container_id):
+    def proxy(self, ip, port, base_path, container_id):
+        app_log.debug((ip, port))
         http_client = AsyncHTTPClient()
         headers = {"Authorization": "token {}".format(self.proxy_token)}
 
         proxy_endpoint = self.proxy_endpoint + "/api/routes/{}".format(base_path)
         body = json.dumps({
-            "target": "http://127.0.0.1:{}".format(port),
+            "target": "http://{}:{}".format(ip, port),
             "container_id": container_id,
         })
 
@@ -224,6 +250,12 @@ def main():
     )
     tornado.options.define('container_ip', default='127.0.0.1',
         help="IP address for containers to bind to"
+    )
+    tornado.options.define('container_port', default='8888',
+        help="Port for containers to bind to"
+    )
+    tornado.options.define('ipython_executable', default='ipython3',
+        help="IPython Notebook startup (e.g. ipython, ipython2, ipython3)"
     )
     tornado.options.define('port', default=9999,
         help="port for the main server to listen on"
@@ -261,6 +293,8 @@ def main():
     async_docker_client = AsyncDockerClient(blocking_docker_client,
                                             executor)
 
+    # TODO: Determine if the chosen image actually exists on the server.
+
     settings = dict(
         static_path=os.path.join(os.path.dirname(__file__), "static"),
         cookie_secret=uuid.uuid4(),
@@ -269,6 +303,8 @@ def main():
         autoescape=None,
         docker_client=async_docker_client,
         container_ip = opts.container_ip,
+        container_port = opts.container_port,
+        ipython_executable = opts.ipython_executable,
         proxy_token=proxy_token,
         template_path=os.path.join(os.path.dirname(__file__), 'templates'),
         proxy_endpoint=proxy_endpoint,
