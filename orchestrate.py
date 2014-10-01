@@ -321,7 +321,7 @@ def main():
         cull_ms = cull_timeout * 1e3
         app_log.info("Culling every %i seconds", cull_timeout)
         culler = tornado.ioloop.PeriodicCallback(
-            lambda : cull_idle(async_docker_client, proxy_token, delta),
+            lambda : cull_idle(async_docker_client, proxy_endpoint, proxy_token, delta),
             cull_ms
         )
         culler.start()
