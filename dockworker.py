@@ -10,7 +10,7 @@ from tornado.httpclient import HTTPRequest, HTTPError, AsyncHTTPClient
 AsyncHTTPClient.configure("tornado.curl_httpclient.CurlAsyncHTTPClient")
 
 @gen.coroutine
-def cull_idle(docker_client, proxy_token, delta=None):
+def cull_idle(docker_client, proxy_endpoint, proxy_token, delta=None):
     if delta is None:
         delta = datetime.timedelta(minutes=60)
     http_client = AsyncHTTPClient()
@@ -18,7 +18,7 @@ def cull_idle(docker_client, proxy_token, delta=None):
     dt = datetime.datetime.utcnow() - delta
     timestamp = dt.isoformat() + 'Z'
 
-    routes_url = "http://127.0.0.1:8001/api/routes"
+    routes_url = proxy_endpoint + "/api/routes"
 
     url = url_concat(routes_url,
                      {'inactive_since': timestamp})
