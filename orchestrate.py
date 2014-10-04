@@ -269,7 +269,7 @@ def main():
     tornado.options.define('cpu_shares', default=None,
         help="Limit CPU shares, per container"
     )
-    tornado.options.define('image', default="jupyter/tmpnb",
+    tornado.options.define('image', default="jupyter/demo",
         help="Docker container to spawn for new users. Must be on the system already"
     )
     tornado.options.define('docker_version', default="1.14",

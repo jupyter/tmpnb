@@ -5,10 +5,10 @@ Launches "temporary" IPython notebook servers.
 Get Docker, then:
 
 ```
-docker pull jupyter/tmpnb
+docker pull jupyter/demo
 export TOKEN=$( head -c 30 /dev/urandom | xxd -p )
 docker run --net=host -d -e CONFIGPROXY_AUTH_TOKEN=$TOKEN jupyter/configurable-http-proxy --default-target http://127.0.0.1:9999
-docker run --net=host -d -e CONFIGPROXY_AUTH_TOKEN=$TOKEN -v /var/run/docker.sock:/docker.sock jupyter/tmpnb-orc
+docker run --net=host -d -e CONFIGPROXY_AUTH_TOKEN=$TOKEN -v /var/run/docker.sock:/docker.sock jupyter/tmpnb
 ```
 
 BAM! Visit your host on port 8000 and you have a working tmpnb setup.
@@ -34,7 +34,7 @@ git clone https://github.com/jupyter/tmpnb.git
 cd tmpnb
 
 # If modifying the Docker image in any way
-docker build -t jupyter/tmpnb image
+docker build -t jupyter/demo image
 
 pip install -r requirements.txt
 npm install jupyter/configurable-http-proxy
