@@ -174,10 +174,10 @@ class SpawnHandler(RequestHandler):
     @gen.coroutine
     def create_notebook_server(self, base_path):
         '''
-        POST /containers/create
-        '''
-        # TODO: Use tornado AsyncHTTPClient instead of docker-py
+        Creates a notebook_server running off of `base_path`.
 
+        returns the container_id, ip, port in a Future
+        '''
         docker_client = self.docker_client
 
         ipython_executable = self.ipython_executable

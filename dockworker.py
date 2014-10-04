@@ -9,6 +9,9 @@ from tornado.httpclient import HTTPRequest, HTTPError, AsyncHTTPClient
 
 AsyncHTTPClient.configure("tornado.curl_httpclient.CurlAsyncHTTPClient")
 
+class SpawnPool():
+    pass
+
 @gen.coroutine
 def cull_idle(docker_client, proxy_endpoint, proxy_token, delta=None):
     if delta is None:
