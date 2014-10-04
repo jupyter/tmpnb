@@ -269,8 +269,11 @@ def main():
     tornado.options.define('cpu_shares', default=None,
         help="Limit CPU shares, per container"
     )
-    tornado.options.define('image', default="jupyter/tmpnb",
+    tornado.options.define('image', default="jupyter/demo",
         help="Docker container to spawn for new users. Must be on the system already"
+    )
+    tornado.options.define('docker_version', default="1.14",
+        help="Version of the Docker API to use"
     )
 
     tornado.options.parse_command_line()
@@ -286,7 +289,7 @@ def main():
     proxy_endpoint = os.environ.get('CONFIGPROXY_ENDPOINT', "http://127.0.0.1:8001")
     docker_host = os.environ.get('DOCKER_HOST', 'unix://var/run/docker.sock')
     
-    blocking_docker_client = docker.Client(base_url=docker_host, timeout=10)
+    blocking_docker_client = docker.Client(base_url=docker_host, version=opts.docker_version, timeout=20)
 
     executor = ThreadPoolExecutor(max_workers=opts.max_dock_workers)
     
