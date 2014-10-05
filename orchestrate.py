@@ -27,6 +27,7 @@ from tornado import ioloop
 from tornado.httputil import url_concat
 from tornado.httpclient import HTTPRequest, HTTPError, AsyncHTTPClient
 
+import dockworker
 from dockworker import cull_idle
 
 AsyncHTTPClient.configure("tornado.curl_httpclient.CurlAsyncHTTPClient")
@@ -80,8 +81,13 @@ class SpawnHandler(RequestHandler):
 
         self.write("Initializing {}".format(prefix))
 
-        container_id, ip, port = yield self.create_notebook_server(prefix)
+        container_id, ip, port = yield self.spawn_pool.create_notebook_server(prefix,
+                image=self.image, ipython_executable=self.ipython_executable,
+                mem_limit=self.mem_limit, cpu_shares=self.cpu_shares,
+                container_ip=self.container_ip,
+                container_port=self.container_port)
 
+        app_log.debug(ip, port, prefix, container_id)
         yield self.proxy(ip, port, prefix, container_id)
 
         # Wait for the notebook server to come up.
@@ -136,6 +142,10 @@ class SpawnHandler(RequestHandler):
                 break
 
     @property
+    def spawn_pool(self):
+        return self.settings['spawn_pool']
+
+    @property
     def docker_client(self):
         return self.settings['docker_client']
 
@@ -171,57 +181,6 @@ class SpawnHandler(RequestHandler):
     def ipython_executable(self):
         return self.settings['ipython_executable']
 
-    @gen.coroutine
-    def create_notebook_server(self, base_path):
-        '''
-        Creates a notebook_server running off of `base_path`.
-
-        returns the container_id, ip, port in a Future
-        '''
-        docker_client = self.docker_client
-
-        ipython_executable = self.ipython_executable
-
-        ipython_args = [
-                "notebook", "--no-browser",
-                "--port {}".format(self.container_port),
-                "--ip=0.0.0.0",
-                "--NotebookApp.base_url=/{}".format(base_path),
-                "--NotebookApp.tornado_settings=\"{'template_path':['/srv/ga/', '/srv/ipython/IPython/html', '/srv/ipython/IPython/html/templates']}\""
-        ]
-
-        ipython_command = ipython_executable + " " + " ".join(ipython_args)
-
-        command = [
-            "/bin/sh",
-            "-c",
-            ipython_command
-        ]
-
-        resp = yield docker_client.create_container(image=self.image,
-                                                    command=command,
-                                                    mem_limit=self.mem_limit,
-                                                    cpu_shares=self.cpu_shares)
-
-        docker_warnings = resp['Warnings']
-        if docker_warnings is not None:
-            app_log.warn(docker_warnings)
-
-        container_id = resp['Id']
-        app_log.info("Created container {}".format(container_id))
-
-        app_log.debug(self.container_ip, self.container_port)
-
-        yield docker_client.start(container_id,
-                                  port_bindings={self.container_port: (self.container_ip,)})
-
-        container_network = yield docker_client.port(container_id,
-                                                     self.container_port)
-
-        port = container_network[0]['HostPort']
-        ip = container_network[0]['HostIp']
-
-        raise gen.Return((container_id, ip, int(port)))
 
     @gen.coroutine
     def proxy(self, ip, port, base_path, container_id):
@@ -296,6 +255,8 @@ def main():
     async_docker_client = AsyncDockerClient(blocking_docker_client,
                                             executor)
 
+    spawn_pool = dockworker.SpawnPool(async_docker_client, "ipython3")
+
     # TODO: Determine if the chosen image actually exists on the server.
 
     settings = dict(
@@ -303,6 +264,7 @@ def main():
         cookie_secret=uuid.uuid4(),
         xsrf_cookies=True,
         debug=True,
+        spawn_pool=spawn_pool,
         autoescape=None,
         docker_client=async_docker_client,
         container_ip = opts.container_ip,
