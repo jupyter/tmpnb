@@ -13,6 +13,14 @@ docker run --net=host -d -e CONFIGPROXY_AUTH_TOKEN=$TOKEN -v /var/run/docker.soc
 
 BAM! Visit your host on port 8000 and you have a working tmpnb setup.
 
+#### Advanced configuration
+
+If you need to set the `docker-version` or other options, they can be passed to `jupyter/tmpnb` directly:
+
+```
+docker run --net=host -d -e CONFIGPROXY_AUTH_TOKEN=$TOKEN -v /var/run/docker.sock:/docker.sock jupyter/tmpnb python orchestrate.py --cull-timeout=60 --docker-version="1.13"
+```
+
 #### Installation
 
 If doing direct installation, you'll need to install it within `/srv/tmpnb` on Ubuntu 14.04.
