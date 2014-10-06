@@ -28,35 +28,9 @@ from tornado.httputil import url_concat
 from tornado.httpclient import HTTPRequest, HTTPError, AsyncHTTPClient
 
 import dockworker
-from dockworker import cull_idle
+from dockworker import cull_idle, AsyncDockerClient
 
 AsyncHTTPClient.configure("tornado.curl_httpclient.CurlAsyncHTTPClient")
-
-class AsyncDockerClient():
-    '''Completely ridiculous wrapper for a Docker client that returns futures
-    on every single docker method called on it, configured with an executor.
-    If no executor is passed, it defaults ThreadPoolExecutor(max_workers=2).
-    '''
-    def __init__(self, docker_client, executor=None):
-        if executor is None:
-            executor = ThreadPoolExecutor(max_workers=2)
-        self._docker_client = docker_client
-        self.executor = executor
-
-    def __getattr__(self, name):
-        '''Creates a function, based on docker_client.name that returns a
-        Future. If name is not a callable, returns the attribute directly.
-        '''
-        fn = getattr(self._docker_client, name)
-
-        # Make sure it really is a function first
-        if not callable(fn):
-            return fn
-
-        def method(*args, **kwargs):
-            return self.executor.submit(fn, *args, **kwargs)
-
-        return method
 
 def sample_with_replacement(a, size=12):
     '''Get a random path. If Python had sampling with replacement built in,
