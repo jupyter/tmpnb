@@ -74,7 +74,7 @@ class DockerSpawner():
                      '/srv/ipython/IPython/html',
                      '/srv/ipython/IPython/html/templates']
 
-        tornado_settings = json.dumps({'template_path': templates})
+        tornado_settings = {'template_path': templates}
 
         ipython_args = [
                 "notebook", "--no-browser",
