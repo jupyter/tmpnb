@@ -227,8 +227,7 @@ def main():
     spawner = dockworker.DockerSpawner(docker_host,
                                        version=opts.docker_version,
                                        timeout=20,
-                                       max_workers=opts.max_dock_workers,
-                                       ipython_executable="ipython3")
+                                       max_workers=opts.max_dock_workers)
 
     # TODO: Determine if the chosen image actually exists on the server.
 
