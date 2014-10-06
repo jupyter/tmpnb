@@ -38,13 +38,13 @@ class AsyncDockerClient():
             return self.executor.submit(fn, *args, **kwargs)
 
         return method
+        
 
 class DockerSpawner():
     def __init__(self, docker_host='unix://var/run/docker.sock',
                        version='1.12',
                        timeout=20,
-                       max_workers=64,
-                       ipython_executable='ipython'):
+                       max_workers=64):
                        
         blocking_docker_client = docker.Client(base_url=docker_host,
                                                version=version,
@@ -55,7 +55,6 @@ class DockerSpawner():
         async_docker_client = AsyncDockerClient(blocking_docker_client,
                                                 executor)
         self.docker_client = async_docker_client
-        self.ipython_executable = ipython_executable
 
     @gen.coroutine
     def create_notebook_server(self, base_path,
@@ -70,7 +69,6 @@ class DockerSpawner():
 
         returns the container_id, ip, port in a Future
         '''
-        docker_client = self.docker_client
 
         ipython_args = [
                 "notebook", "--no-browser",
@@ -88,7 +86,7 @@ class DockerSpawner():
             ipython_command
         ]
 
-        resp = yield docker_client.create_container(image=image,
+        resp = yield self.docker_client.create_container(image=image,
                                                     command=command,
                                                     mem_limit=mem_limit,
                                                     cpu_shares=cpu_shares)
@@ -100,11 +98,11 @@ class DockerSpawner():
         container_id = resp['Id']
         app_log.info("Created container {}".format(container_id))
 
-        yield docker_client.start(container_id,
-                                  port_bindings={container_port: (container_ip,)})
+        yield self.docker_client.start(container_id,
+                                       port_bindings={container_port: (container_ip,)})
 
-        container_network = yield docker_client.port(container_id,
-                                                     container_port)
+        container_network = yield self.docker_client.port(container_id,
+                                                          container_port)
 
         host_port = container_network[0]['HostPort']
         host_ip = container_network[0]['HostIp']
