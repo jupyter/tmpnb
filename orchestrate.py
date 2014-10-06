@@ -14,7 +14,6 @@ import uuid
 from concurrent.futures import ThreadPoolExecutor
 
 import docker
-import docker.errors
 
 import tornado
 import tornado.options
@@ -55,7 +54,7 @@ class SpawnHandler(RequestHandler):
 
         self.write("Initializing {}".format(prefix))
 
-        container_id, ip, port = yield self.spawn_pool.create_notebook_server(prefix,
+        container_id, ip, port = yield self.spawner.create_notebook_server(prefix,
                 image=self.image, ipython_executable=self.ipython_executable,
                 mem_limit=self.mem_limit, cpu_shares=self.cpu_shares,
                 container_ip=self.container_ip,
@@ -116,12 +115,8 @@ class SpawnHandler(RequestHandler):
                 break
 
     @property
-    def spawn_pool(self):
-        return self.settings['spawn_pool']
-
-    @property
-    def docker_client(self):
-        return self.settings['docker_client']
+    def spawner(self):
+        return self.settings['spawner']
 
     @property
     def proxy_token(self):
@@ -229,7 +224,11 @@ def main():
     async_docker_client = AsyncDockerClient(blocking_docker_client,
                                             executor)
 
-    spawn_pool = dockworker.SpawnPool(async_docker_client, "ipython3")
+    spawner = dockworker.DockerSpawner(docker_host,
+                                       version=opts.docker_version,
+                                       timeout=20,
+                                       max_workers=opts.max_dock_workers,
+                                       ipython_executable="ipython3")
 
     # TODO: Determine if the chosen image actually exists on the server.
 
@@ -238,9 +237,8 @@ def main():
         cookie_secret=uuid.uuid4(),
         xsrf_cookies=True,
         debug=True,
-        spawn_pool=spawn_pool,
+        spawner=spawner,
         autoescape=None,
-        docker_client=async_docker_client,
         container_ip = opts.container_ip,
         container_port = opts.container_port,
         ipython_executable = opts.ipython_executable,

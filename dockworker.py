@@ -1,6 +1,10 @@
 import datetime
 import json
 
+from concurrent.futures import ThreadPoolExecutor
+
+import docker
+
 from tornado.log import app_log
 
 from tornado import gen, web
@@ -35,11 +39,23 @@ class AsyncDockerClient():
 
         return method
 
-class SpawnPool():
-    def __init__(self, docker_client, ipython_executable):
-        self.docker_client = docker_client
-        self.ipython_executable = ipython_executable
+class DockerSpawner():
+    def __init__(self, docker_host='unix://var/run/docker.sock',
+                       version='1.12',
+                       timeout=20,
+                       max_workers=64,
+                       ipython_executable='ipython'):
+                       
+        blocking_docker_client = docker.Client(base_url=docker_host,
+                                               version=version,
+                                               timeout=timeout)
 
+        executor = ThreadPoolExecutor(max_workers=max_workers)
+        
+        async_docker_client = AsyncDockerClient(blocking_docker_client,
+                                                executor)
+        self.docker_client = async_docker_client
+        self.ipython_executable = ipython_executable
 
     @gen.coroutine
     def create_notebook_server(self, base_path,
