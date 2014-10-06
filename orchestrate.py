@@ -229,8 +229,6 @@ def main():
                                        timeout=20,
                                        max_workers=opts.max_dock_workers)
 
-    # TODO: Determine if the chosen image actually exists on the server.
-
     settings = dict(
         static_path=os.path.join(os.path.dirname(__file__), "static"),
         cookie_secret=uuid.uuid4(),

@@ -70,12 +70,18 @@ class DockerSpawner():
         returns the container_id, ip, port in a Future
         '''
 
+        templates = ['/srv/ga',
+                     '/srv/ipython/IPython/html',
+                     '/srv/ipython/IPython/html/templates']
+
+        tornado_settings = json.dumps({'template_path': templates})
+
         ipython_args = [
                 "notebook", "--no-browser",
                 "--port {}".format(container_port),
                 "--ip=0.0.0.0",
                 "--NotebookApp.base_url=/{}".format(base_path),
-                "--NotebookApp.tornado_settings=\"{'template_path':['/srv/ga/', '/srv/ipython/IPython/html', '/srv/ipython/IPython/html/templates']}\""
+                "--NotebookApp.tornado_settings=\"{}\"".format(tornado_settings)
         ]
 
         ipython_command = ipython_executable + " " + " ".join(ipython_args)
