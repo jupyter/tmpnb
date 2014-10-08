@@ -67,7 +67,11 @@ class SpawnHandler(RequestHandler):
         yield self.wait_for_server(ip, port, prefix)
 
         if path is None:
-            url = "/%s/notebooks/Welcome.ipynb" % prefix
+            # Redirect the user to the configured redirect location
+            
+            # Take out a leading slash
+            redirect_uri = self.redirect_uri.lstrip("/")
+            url = "/".join(("/{}".format(prefix), redirect_uri))
         else:
             url = path
             if not url.startswith('/'):
@@ -170,6 +174,10 @@ class SpawnHandler(RequestHandler):
     @property
     def ipython_executable(self):
         return self.settings['ipython_executable']
+        
+    @property
+    def redirect_uri(self):
+        return self.settings['redirect_uri']
 
 def main():
     tornado.options.define('cull_timeout', default=3600,
@@ -199,8 +207,11 @@ def main():
     tornado.options.define('image', default="jupyter/demo",
         help="Docker container to spawn for new users. Must be on the system already"
     )
-    tornado.options.define('docker_version', default="1.14",
+    tornado.options.define('docker_version', default="1.13",
         help="Version of the Docker API to use"
+    )
+    tornado.options.define('redirect_uri', default="/notebooks/Welcome.ipynb",
+        help="URI to redirect users to upon initial notebook launch"
     )
 
     tornado.options.parse_command_line()
