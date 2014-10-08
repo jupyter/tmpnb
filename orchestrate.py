@@ -45,6 +45,7 @@ class SpawnHandler(RequestHandler):
 
     @gen.coroutine
     def get(self, path=None):
+        '''Spawns a brand new server'''
         if path is None:
             # no path, use random prefix
             prefix = "user-" + sample_with_replacement(string.ascii_letters +
@@ -67,7 +68,11 @@ class SpawnHandler(RequestHandler):
         yield self.wait_for_server(ip, port, prefix)
 
         if path is None:
-            url = "/%s/notebooks/Welcome.ipynb" % prefix
+            # Redirect the user to the configured redirect location
+            
+            # Take out a leading slash
+            redirect_uri = self.redirect_uri.lstrip("/")
+            url = "/".join(("/{}".format(prefix), redirect_uri))
         else:
             url = path
             if not url.startswith('/'):
@@ -114,6 +119,26 @@ class SpawnHandler(RequestHandler):
             else:
                 break
 
+    @gen.coroutine
+    def proxy(self, ip, port, base_path, container_id):
+        http_client = AsyncHTTPClient()
+        headers = {"Authorization": "token {}".format(self.proxy_token)}
+
+        proxy_endpoint = self.proxy_endpoint + "/api/routes/{}".format(base_path)
+        body = json.dumps({
+            "target": "http://{}:{}".format(ip, port),
+            "container_id": container_id,
+        })
+
+        app_log.info("proxying %s to %s", base_path, port)
+
+        req = HTTPRequest(proxy_endpoint,
+                          method="POST",
+                          headers=headers,
+                          body=body)
+
+        resp = yield http_client.fetch(req)
+
     @property
     def spawner(self):
         return self.settings['spawner']
@@ -149,28 +174,10 @@ class SpawnHandler(RequestHandler):
     @property
     def ipython_executable(self):
         return self.settings['ipython_executable']
-
-
-    @gen.coroutine
-    def proxy(self, ip, port, base_path, container_id):
-        app_log.debug((ip, port))
-        http_client = AsyncHTTPClient()
-        headers = {"Authorization": "token {}".format(self.proxy_token)}
-
-        proxy_endpoint = self.proxy_endpoint + "/api/routes/{}".format(base_path)
-        body = json.dumps({
-            "target": "http://{}:{}".format(ip, port),
-            "container_id": container_id,
-        })
-
-        app_log.info("proxying %s to %s", base_path, port)
-
-        req = HTTPRequest(proxy_endpoint,
-                          method="POST",
-                          headers=headers,
-                          body=body)
-
-        resp = yield http_client.fetch(req)
+        
+    @property
+    def redirect_uri(self):
+        return self.settings['redirect_uri']
 
 def main():
     tornado.options.define('cull_timeout', default=3600,
@@ -200,8 +207,11 @@ def main():
     tornado.options.define('image', default="jupyter/demo",
         help="Docker container to spawn for new users. Must be on the system already"
     )
-    tornado.options.define('docker_version', default="1.14",
+    tornado.options.define('docker_version', default="1.13",
         help="Version of the Docker API to use"
+    )
+    tornado.options.define('redirect_uri', default="/notebooks/Welcome.ipynb",
+        help="URI to redirect users to upon initial notebook launch"
     )
 
     tornado.options.parse_command_line()
@@ -245,6 +255,7 @@ def main():
         mem_limit=opts.mem_limit,
         cpu_shares=opts.cpu_shares,
         image=opts.image,
+        redirect_uri=opts.redirect_uri,
     )
     
     # check for idle containers and cull them
