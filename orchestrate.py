@@ -114,6 +114,27 @@ class SpawnHandler(RequestHandler):
             else:
                 break
 
+    @gen.coroutine
+    def proxy(self, ip, port, base_path, container_id):
+        app_log.debug((ip, port))
+        http_client = AsyncHTTPClient()
+        headers = {"Authorization": "token {}".format(self.proxy_token)}
+
+        proxy_endpoint = self.proxy_endpoint + "/api/routes/{}".format(base_path)
+        body = json.dumps({
+            "target": "http://{}:{}".format(ip, port),
+            "container_id": container_id,
+        })
+
+        app_log.info("proxying %s to %s", base_path, port)
+
+        req = HTTPRequest(proxy_endpoint,
+                          method="POST",
+                          headers=headers,
+                          body=body)
+
+        resp = yield http_client.fetch(req)
+
     @property
     def spawner(self):
         return self.settings['spawner']
@@ -149,28 +170,6 @@ class SpawnHandler(RequestHandler):
     @property
     def ipython_executable(self):
         return self.settings['ipython_executable']
-
-
-    @gen.coroutine
-    def proxy(self, ip, port, base_path, container_id):
-        app_log.debug((ip, port))
-        http_client = AsyncHTTPClient()
-        headers = {"Authorization": "token {}".format(self.proxy_token)}
-
-        proxy_endpoint = self.proxy_endpoint + "/api/routes/{}".format(base_path)
-        body = json.dumps({
-            "target": "http://{}:{}".format(ip, port),
-            "container_id": container_id,
-        })
-
-        app_log.info("proxying %s to %s", base_path, port)
-
-        req = HTTPRequest(proxy_endpoint,
-                          method="POST",
-                          headers=headers,
-                          body=body)
-
-        resp = yield http_client.fetch(req)
 
 def main():
     tornado.options.define('cull_timeout', default=3600,
