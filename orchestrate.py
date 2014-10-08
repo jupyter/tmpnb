@@ -210,7 +210,7 @@ def main():
     tornado.options.define('docker_version', default="1.13",
         help="Version of the Docker API to use"
     )
-    tornado.options.define('redirect_uri', default="/notebooks/Welcome.ipynb",
+    tornado.options.define('redirect_uri', default="/tree",
         help="URI to redirect users to upon initial notebook launch"
     )
 
