@@ -45,6 +45,7 @@ class SpawnHandler(RequestHandler):
 
     @gen.coroutine
     def get(self, path=None):
+        '''Spawns a brand new server'''
         if path is None:
             # no path, use random prefix
             prefix = "user-" + sample_with_replacement(string.ascii_letters +
@@ -255,6 +256,7 @@ def main():
         mem_limit=opts.mem_limit,
         cpu_shares=opts.cpu_shares,
         image=opts.image,
+        redirect_uri=opts.redirect_uri,
     )
     
     # check for idle containers and cull them
