@@ -121,7 +121,6 @@ class SpawnHandler(RequestHandler):
 
     @gen.coroutine
     def proxy(self, ip, port, base_path, container_id):
-        app_log.debug((ip, port))
         http_client = AsyncHTTPClient()
         headers = {"Authorization": "token {}".format(self.proxy_token)}
 
