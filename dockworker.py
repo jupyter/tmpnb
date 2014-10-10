@@ -38,20 +38,20 @@ class AsyncDockerClient():
             return self.executor.submit(fn, *args, **kwargs)
 
         return method
-        
+
 
 class DockerSpawner():
     def __init__(self, docker_host='unix://var/run/docker.sock',
                        version='1.12',
                        timeout=20,
                        max_workers=64):
-                       
+
         blocking_docker_client = docker.Client(base_url=docker_host,
                                                version=version,
                                                timeout=timeout)
 
         executor = ThreadPoolExecutor(max_workers=max_workers)
-        
+
         async_docker_client = AsyncDockerClient(blocking_docker_client,
                                                 executor)
         self.docker_client = async_docker_client

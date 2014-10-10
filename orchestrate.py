@@ -226,11 +226,11 @@ def main():
     proxy_token = os.environ['CONFIGPROXY_AUTH_TOKEN']
     proxy_endpoint = os.environ.get('CONFIGPROXY_ENDPOINT', "http://127.0.0.1:8001")
     docker_host = os.environ.get('DOCKER_HOST', 'unix://var/run/docker.sock')
-    
+
     blocking_docker_client = docker.Client(base_url=docker_host, version=opts.docker_version, timeout=20)
 
     executor = ThreadPoolExecutor(max_workers=opts.max_dock_workers)
-    
+
     async_docker_client = AsyncDockerClient(blocking_docker_client,
                                             executor)
 
@@ -257,10 +257,10 @@ def main():
         image=opts.image,
         redirect_uri=opts.redirect_uri,
     )
-    
+
     # check for idle containers and cull them
     cull_timeout = opts.cull_timeout
-    
+
     if cull_timeout:
         delta = datetime.timedelta(seconds=cull_timeout)
         cull_ms = cull_timeout * 1e3
