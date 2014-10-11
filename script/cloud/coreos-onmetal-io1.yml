@@ -77,6 +77,10 @@ write_files:
 
 
 coreos:
+  update:
+    # If etcd is running, use an etcd-lock. Otherwise reboot
+    reboot-strategy: best-effort
+
   units:
     - name: systemd-sysctl.service
       command: restart
