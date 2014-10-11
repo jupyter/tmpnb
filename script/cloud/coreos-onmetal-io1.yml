@@ -121,6 +121,28 @@ coreos:
         RemainAfterExit=yes
         ExecStart=/root/bin/add_raid_uuid_to_fstab.sh
 
+    - name: docker.service
+      command: start
+      content: |
+        [Unit]
+        Description=Docker Application Container Engine
+        Documentation=http://docs.docker.io
+        Requires=docker.socket
+        
+        [Service]
+        Environment="TMPDIR=/var/tmp/"
+        ExecStartPre=/bin/mount --make-rprivate /
+        LimitNOFILE=1048576
+        LimitNPROC=1048576
+        # Run docker but don't have docker automatically restart
+        # containers. This is a job for systemd and unit files.
+        # Turn off inter-container communication (--icc=false) so the containers
+        # can't communicate over etcd or with each other.
+        ExecStart=/usr/bin/docker -d -s=btrfs -r=false --icc=false -H fd://
+
+[Install]
+WantedBy=multi-user.target
+
     - name: configproxy.service
       enable: true
       command: start
