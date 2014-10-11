@@ -140,8 +140,8 @@ coreos:
         # can't communicate over etcd or with each other.
         ExecStart=/usr/bin/docker -d -s=btrfs -r=false --icc=false -H fd://
 
-[Install]
-WantedBy=multi-user.target
+        [Install]
+        WantedBy=multi-user.target
 
     - name: configproxy.service
       enable: true
