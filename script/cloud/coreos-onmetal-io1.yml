@@ -137,6 +137,17 @@ coreos:
         [Install]
         WantedBy=tmpnb.target
 
+    - name: pull-user-image.service
+      command: start
+      content: |
+        [Unit]
+        Description=Pull the image for users on tmpnb
+        Before=tmpnb.service
+
+        [Service]
+        Type=oneshot
+        ExecStart=/usr/bin/docker pull jupyter/demo
+
     - name: tmpnb.service
       enable: true
       command: start
