@@ -144,7 +144,7 @@ coreos:
         [Service]
         Restart=always
         ExecStartPre=/usr/bin/docker pull jupyter/tmpnb
-        ExecStart=/usr/bin/docker run --rm --name tmpnb --net=host -e CONFIGPROXY_AUTH_TOKEN=HOKEYTOKEN -v /var/run/docker.sock:/docker.sock jupyter/tmpnb python orchestrate.py --cull-timeout=60 --docker-version="1.13"
+        ExecStart=/usr/bin/docker run --rm --name tmpnb --net=host -e CONFIGPROXY_AUTH_TOKEN=HOKEYTOKEN -v /var/run/docker.sock:/docker.sock jupyter/tmpnb python orchestrate.py --cull-timeout=60 --docker-version=1.13
         ExecStop=/usr/bin/docker rm -f tmpnb
         [Install]
         WantedBy=tmpnb.target
