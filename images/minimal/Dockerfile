@@ -1,9 +1,8 @@
-FROM ipython/scipystack
+FROM ipython/ipython
 
 MAINTAINER IPython Project <ipython-dev@scipy.org>
 
 # The ipython/ipython image has the full working copy of IPython
-WORKDIR /srv/ipython/
 RUN chmod a+rwX /srv/ipython/examples
 
 # Fake Google Analytics directory (for now)
