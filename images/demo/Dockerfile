@@ -39,6 +39,8 @@ USER root
 ADD Julia/ /srv/Julia/
 ADD R/ /srv/R/
 ADD notebooks/ /home/jupyter/
+ADD https://rawgithub.com/minrk/ipython_extensions/master/nbextensions/gist.js /home/jupyter/.ipython/nbextensions/gist.js
+ADD custom.js /home/jupyter/.ipython/profile_default/static/custom/custom.js
 
 # Add Google Analytics templates
 ADD ga/ /srv/ga/
