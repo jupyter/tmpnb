@@ -67,7 +67,7 @@ class SpawnPool():
         return next
 
     @gen.coroutine
-    def release(self, container):
+    def release(self, container, replace=True):
         '''Release a container previously returned by acquire. Destroy the container and create a
         new one to take its place.'''
 
@@ -90,11 +90,12 @@ class SpawnPool():
         except HTTPError as e:
             app_log.error("Failed to delete route [%s]: %s", container, e)
 
-        self.taken.discard(container)
-        app_log.debug("Launching a replacement container.")
-        new_container = yield self._launch_notebook_server()
-        self.available.append(new_container)
-        app_log.info("Replacement container [%s] is up and ready to go.", new_container)
+        if replace:
+            self.taken.discard(container)
+            app_log.debug("Launching a replacement container.")
+            new_container = yield self._launch_notebook_server()
+            self.available.append(new_container)
+            app_log.info("Replacement container [%s] is up and ready to go.", new_container)
 
     @gen.coroutine
     def cull(self, delta=None):

@@ -59,6 +59,10 @@ class SpawnHandler(RequestHandler):
             app_log.debug("Redirecting [%s] -> [%s].", self.request.path, url)
             self.redirect(url, permanent=False)
         else:
+            # Scrap an existing container from the pool so the ad-hoc one will take its place.
+            scrap = self.pool.acquire()
+            yield self.pool.release(scrap)
+
             prefix = path.lstrip('/').split('/', 1)[0]
             app_log.info("Provisioning a new ad-hoc container for [%s].", prefix)
             self.write("Provisioning a new ad-hoc container for [{}].".format(prefix))
