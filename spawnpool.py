@@ -5,6 +5,7 @@ from tornado import gen
 from tornado import ioloop
 from tornado.log import app_log
 from tornado.httpclient import HTTPRequest, HTTPError, AsyncHTTPClient
+from tornado.httputil import url_concat
 
 import string
 import random
@@ -67,13 +68,13 @@ class SpawnPool():
         return next
 
     @gen.coroutine
-    def release(self, container, replace=True):
+    def release(self, container, replace=False):
         '''Release a container previously returned by acquire. Destroy the container and create a
         new one to take its place.'''
 
         try:
             app_log.info("Killing used container [%s].", container)
-            yield self.docker.kill(container.id)
+            yield self.docker.stop(container.id)
 
             app_log.debug("Removing killed container [%s].", container)
             yield self.docker.remove_container(container.id)
@@ -82,7 +83,7 @@ class SpawnPool():
 
         app_log.debug("Removing container [%s] from the proxy.", container)
         http_client = AsyncHTTPClient()
-        proxy_url = "{}/api/routes/{}".format(self.proxy_endpoint, path)
+        proxy_url = "{}/api/routes/{}".format(self.proxy_endpoint, container.path)
         headers = {"Authorization": "token {}".format(self.proxy_token)}
         req = HTTPRequest(proxy_url, method="DELETE", headers=headers)
         try:
@@ -115,7 +116,7 @@ class SpawnPool():
 
         try:
             resp = yield http_client.fetch(req)
-            results = json.loads(reply.body.decode('utf8', 'replace'))
+            results = json.loads(resp.body.decode('utf8', 'replace'))
 
             if not results:
                 app_log.debug("No stale routes to cull.")
@@ -125,7 +126,7 @@ class SpawnPool():
                 if container_id:
                     container = PooledContainer(id=container_id, path=base_path)
                     yield self.release(container)
-                    count += 1
+                    reaped = reaped + 1
         except HTTPError as e:
             app_log.error("Failed to list stale routes: %s", e)
 
