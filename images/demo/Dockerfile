@@ -9,17 +9,12 @@ MAINTAINER IPython Project <ipython-dev@scipy.org>
 # The ipython/ipython image has the full working copy of IPython
 WORKDIR /srv/ipython/
 RUN chmod a+rwX /srv/ipython/examples
-ADD notebooks/ /srv/notebooks/
-
-# Add Google Analytics templates
-ADD ga/ /srv/ga/
 
 # Dependencies for the example notebooks
 RUN apt-get build-dep -y mpi4py && pip2 install scikit-image vincent dill networkx mpi4py && pip3 install scikit-image vincent dill networkx mpi4py
 
 # Install R and the R kernel
 RUN apt-get install -y r-base r-base-dev r-cran-rcurl
-ADD R/ /srv/R/
 
 # Julia Installation
 RUN apt-get install software-properties-common python-software-properties -y && \
@@ -29,14 +24,29 @@ RUN apt-get install software-properties-common python-software-properties -y && 
     apt-get install julia -y && \
     apt-get install libnettle4
 
-ADD Julia/ /srv/Julia/
-
 EXPOSE 8888
-
-RUN chmod a+rX /srv/R/ -R
 
 # jupyter is our user
 RUN useradd -m -s /bin/bash jupyter
+
+USER jupyter
+RUN ipython profile create
+
+# Workaround for issue with ADD permissions
+USER root
+
+# All the additions to give to the created user.
+ADD Julia/ /srv/Julia/
+ADD R/ /srv/R/
+ADD notebooks/ /home/jupyter/
+
+# Add Google Analytics templates
+ADD ga/ /srv/ga/
+
+RUN chmod a+rX /srv/R/ -R
+RUN chown jupyter:jupyter /home/jupyter -R
+
+## Final actions for user
 
 USER jupyter
 ENV HOME /home/jupyter
@@ -65,7 +75,6 @@ RUN cat /srv/R/install_pkgs.R   | R --no-save
 
 # Example notebooks 
 RUN cp -r /srv/ipython/examples /home/jupyter/ipython_examples
-RUN cp -r /srv/notebooks/* /home/jupyter/
 
 RUN chown -R jupyter:jupyter /home/jupyter
 
