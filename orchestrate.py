@@ -60,8 +60,8 @@ class SpawnHandler(RequestHandler):
             self.redirect(url, permanent=False)
         else:
             prefix = path.lstrip('/').split('/', 1)[0]
-            app_log.info("Initializing a new ad-hoc container for [%s].", prefix)
-            self.write("Initializing a new ad-hoc container for [{}].".format(prefix))
+            app_log.info("Provisioning a new ad-hoc container for [%s].", prefix)
+            self.write("Provisioning a new ad-hoc container for [{}].".format(prefix))
 
             container_id, ip, port = yield self.spawner.create_notebook_server(prefix,
                     image=self.image, ipython_executable=self.ipython_executable,
