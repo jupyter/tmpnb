@@ -225,6 +225,9 @@ def main():
     tornado.options.define('redirect_uri', default="/tree",
         help="URI to redirect users to upon initial notebook launch"
     )
+    tornado.options.define('pool_size', default=0,
+        help="Number of containers to prelaunch and delegate to a spawn pool"
+    )
 
     tornado.options.parse_command_line()
     opts = tornado.options.options
@@ -279,7 +282,7 @@ def main():
     )
 
     # Pre-launch a set number of containers, ready to serve.
-    pool.prepare(3)
+    pool.prepare(opts.pool_size)
 
     # check for idle containers and cull them
     cull_timeout = opts.cull_timeout
