@@ -101,6 +101,8 @@ class SpawnPool():
         if delta is None:
             delta = timedelta(minutes=60)
         http_client = AsyncHTTPClient()
+        app_log.debug("The culling has begun.")
+        reaped = 0
 
         dt = datetime.utcnow() - delta
         cutoff = dt.isoformat() + 'Z'
@@ -122,8 +124,11 @@ class SpawnPool():
                 if container_id:
                     container = PooledContainer(id=container_id, path=base_path)
                     yield self.release(container)
+                    count += 1
         except HTTPError as e:
             app_log.error("Failed to list stale routes: %s", e)
+
+        app_log.debug("The culling has reaped %i souls (containers).", reaped)
 
     @gen.coroutine
     def _launch_notebook_server(self):
