@@ -11,8 +11,8 @@ demo-image:
 
 dev: cleanup-images minimal-image tmpnb
 	docker pull jupyter/configurable-http-proxy
-	docker run --net=host -d -e CONFIGPROXY_AUTH_TOKEN=devtoken -v /var/run/docker.sock:/docker.sock jupyter/tmpnb
-	docker run --net=host -d -e CONFIGPROXY_AUTH_TOKEN=devtoken jupyter/configurable-http-proxy --default-target http://127.0.0.1:9999 --image=jupyter/minimal
+	docker run --net=host -d -e CONFIGPROXY_AUTH_TOKEN=devtoken -v /var/run/docker.sock:/docker.sock jupyter/tmpnb python orchestrate.py --image=jupyter/minimal
+	docker run --net=host -d -e CONFIGPROXY_AUTH_TOKEN=devtoken jupyter/configurable-http-proxy --default-target http://127.0.0.1:9999
 
 cleanup-images:
 	-docker stop `docker ps -aq`
