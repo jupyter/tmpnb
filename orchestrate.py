@@ -47,13 +47,15 @@ class SpawnHandler(RequestHandler):
     @gen.coroutine
     def get(self, path=None):
         '''Spawns a brand new server'''
+
+        # Take out a leading slash
+        redirect_uri = self.redirect_uri.lstrip("/")
+
         if path is None:
             # No path. Assign a prelaunched container from the pool and redirect to it.
             prefix = self.pool.acquire().path
 
-            # Take out a leading slash
-            redirect_uri = self.redirect_uri.lstrip("/")
-            url = "/".join(("/{}".format(prefix), redirect_uri))
+            url = "/{}/{}".format(prefix, redirect_uri)
             app_log.debug("Redirecting [%s] -> [%s].", self.request.path, url)
             self.redirect(url, permanent=False)
         else:
@@ -78,7 +80,7 @@ class SpawnHandler(RequestHandler):
             yield self.wait_for_server(ip, port, prefix)
 
             if path is None:
-                url = "/%s/notebooks/Welcome.ipynb" % prefix
+                url = "/{}/{}".format(prefix, redirect_uri)
             else:
                 url = path
                 if not url.startswith('/'):
