@@ -27,7 +27,8 @@ from tornado.httputil import url_concat
 from tornado.httpclient import HTTPRequest, HTTPError, AsyncHTTPClient
 
 import dockworker
-from dockworker import cull_idle, AsyncDockerClient
+from dockworker import AsyncDockerClient
+from spawnpool import SpawnPool
 
 AsyncHTTPClient.configure("tornado.curl_httpclient.CurlAsyncHTTPClient")
 
@@ -47,38 +48,43 @@ class SpawnHandler(RequestHandler):
     def get(self, path=None):
         '''Spawns a brand new server'''
         if path is None:
-            # no path, use random prefix
-            prefix = "user-" + sample_with_replacement(string.ascii_letters +
-                                                       string.digits)
-        else:
-            prefix = path.lstrip('/').split('/', 1)[0]
+            # No path. Assign a prelaunched container from the pool and redirect to it.
+            prefix = self.pool.acquire().path
 
-        self.write("Initializing {}".format(prefix))
-
-        container_id, ip, port = yield self.spawner.create_notebook_server(prefix,
-                image=self.image, ipython_executable=self.ipython_executable,
-                mem_limit=self.mem_limit, cpu_shares=self.cpu_shares,
-                container_ip=self.container_ip,
-                container_port=self.container_port)
-
-        app_log.debug(ip, port, prefix, container_id)
-        yield self.proxy(ip, port, prefix, container_id)
-
-        # Wait for the notebook server to come up.
-        yield self.wait_for_server(ip, port, prefix)
-
-        if path is None:
-            # Redirect the user to the configured redirect location
-            
             # Take out a leading slash
             redirect_uri = self.redirect_uri.lstrip("/")
             url = "/".join(("/{}".format(prefix), redirect_uri))
+            app_log.debug("Redirecting [%s] -> [%s].", self.request.path, url)
+            self.redirect(url, permanent=False)
         else:
-            url = path
-            if not url.startswith('/'):
-                url = '/' + url
-        app_log.debug("redirecting %s -> %s", self.request.path, url)
-        self.redirect(url, permanent=False)
+            prefix = path.lstrip('/').split('/', 1)[0]
+            app_log.info("Initializing a new ad-hoc container for [%s].", prefix)
+            self.write("Initializing a new ad-hoc container for [{}].".format(prefix))
+
+            container_id, ip, port = yield self.spawner.create_notebook_server(prefix,
+                    image=self.image, ipython_executable=self.ipython_executable,
+                    mem_limit=self.mem_limit, cpu_shares=self.cpu_shares,
+                    container_ip=self.container_ip,
+                    container_port=self.container_port)
+
+            app_log.debug("Launched container [%s] at [%s:%s] with ID [%s]",
+                          prefix,
+                          ip,
+                          port,
+                          container_id)
+            yield self.proxy(ip, port, prefix, container_id)
+
+            # Wait for the notebook server to come up.
+            yield self.wait_for_server(ip, port, prefix)
+
+            if path is None:
+                url = "/%s/notebooks/Welcome.ipynb" % prefix
+            else:
+                url = path
+                if not url.startswith('/'):
+                    url = '/' + url
+            app_log.debug("Redirecting [%s] -> [%s].", self.request.path, url)
+            self.redirect(url, permanent=False)
 
     @gen.coroutine
     def wait_for_server(self, ip, port, path, timeout=10, wait_time=0.2):
@@ -144,6 +150,10 @@ class SpawnHandler(RequestHandler):
         return self.settings['spawner']
 
     @property
+    def pool(self):
+        return self.settings['pool']
+
+    @property
     def proxy_token(self):
         return self.settings['proxy_token']
 
@@ -174,7 +184,7 @@ class SpawnHandler(RequestHandler):
     @property
     def ipython_executable(self):
         return self.settings['ipython_executable']
-        
+
     @property
     def redirect_uri(self):
         return self.settings['redirect_uri']
@@ -239,12 +249,20 @@ def main():
                                        timeout=20,
                                        max_workers=opts.max_dock_workers)
 
+    pool = SpawnPool(proxy_endpoint=proxy_endpoint,
+                     proxy_token=proxy_token,
+                     docker_host=docker_host,
+                     version=opts.docker_version,
+                     timeout=20,
+                     max_workers=opts.max_dock_workers)
+
     settings = dict(
         static_path=os.path.join(os.path.dirname(__file__), "static"),
         cookie_secret=uuid.uuid4(),
         xsrf_cookies=True,
         debug=True,
         spawner=spawner,
+        pool=pool,
         autoescape=None,
         container_ip = opts.container_ip,
         container_port = opts.container_port,
@@ -258,6 +276,9 @@ def main():
         redirect_uri=opts.redirect_uri,
     )
 
+    # Pre-launch a set number of containers, ready to serve.
+    pool.prepare(3)
+
     # check for idle containers and cull them
     cull_timeout = opts.cull_timeout
 
@@ -266,7 +287,7 @@ def main():
         cull_ms = cull_timeout * 1e3
         app_log.info("Culling every %i seconds", cull_timeout)
         culler = tornado.ioloop.PeriodicCallback(
-            lambda : cull_idle(async_docker_client, proxy_endpoint, proxy_token, delta),
+            lambda : pool.cull(),
             cull_ms
         )
         culler.start()
