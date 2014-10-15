@@ -113,3 +113,11 @@ class DockerSpawner():
         host_ip = container_network[0]['HostIp']
 
         raise gen.Return((container_id, host_ip, int(host_port)))
+
+    @gen.coroutine
+    def shutdown_notebook_server(self, container_id):
+        '''Gracefully stop a running container.'''
+
+        yield self.docker_client.stop(container_id)
+
+        yield self.docker_client.remove_container(container_id)

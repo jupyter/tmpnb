@@ -81,23 +81,21 @@ class SpawnPool():
         new one to take its place.'''
 
         try:
-            app_log.info("Stopping used container [%s].", container)
-            yield self.docker.stop(container.id)
-
-            app_log.debug("Removing killed container [%s].", container)
-            yield self.docker.remove_container(container.id)
+            app_log.info("Shutting down used container [%s].", container)
+            yield self.docker.shutdown_notebook_server(container.id)
+            app_log.debug("Inactive container [%s] has been shut down.", container)
         except Exception as e:
             app_log.error("Unable to cull container [%s]: %s", container, e)
 
         app_log.debug("Removing container [%s] from the proxy.", container)
         http_client = AsyncHTTPClient()
-        proxy_url = "{}/api/routes/{}".format(self.proxy_endpoint, container.path)
+        proxy_url = "{}/api/routes/{}".format(self.proxy_endpoint, container.path.lstrip('/'))
         headers = {"Authorization": "token {}".format(self.proxy_token)}
         req = HTTPRequest(proxy_url, method="DELETE", headers=headers)
         try:
             yield http_client.fetch(req)
         except HTTPError as e:
-            app_log.error("Failed to delete route [%s]: %s", container, e)
+            app_log.error("Failed to delete route [%s]: %s", proxy_url, e)
 
         if replace:
             self.taken.discard(container)
