@@ -48,6 +48,7 @@ class SpawnPool():
         self.proxy_token = proxy_token
 
         self.available = deque()
+        self.releasing = set()
 
     def prepare(self, count):
         '''Synchronously pre-allocate a set number of containers, ready to serve.'''
@@ -76,6 +77,11 @@ class SpawnPool():
         '''Release a container previously returned by acquire. Destroy the container and create a
         new one to take its place.'''
 
+        if container.id in self.releasing:
+            raise gen.Return(None)
+
+        self.releasing.add(container.id)
+
         try:
             app_log.info("Shutting down used container [%s].", container)
             yield self.docker.shutdown_notebook_server(container.id)
@@ -96,6 +102,8 @@ class SpawnPool():
         if replace:
             app_log.debug("Launching a replacement container.")
             yield self._launch_container()
+
+        self.releasing.remove(container.id)
 
     @gen.coroutine
     def cull(self, delta=None):
