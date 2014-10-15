@@ -62,7 +62,7 @@ class SpawnPool():
         '''Acquire a preallocated container and returns its user path.'''
 
         next = self.available.pop()
-        self.taken.add(next)
+        self.taken.add(next.id)
         return next
 
     @gen.coroutine
@@ -71,7 +71,8 @@ class SpawnPool():
         the pool.'''
 
         yield self.release(self.acquire(), False)
-        yield self._launch_container(path)
+        launched = yield self._launch_container(path)
+        self.taken.add(launched.id)
 
     @gen.coroutine
     def release(self, container, replace=True):
@@ -95,8 +96,9 @@ class SpawnPool():
         except HTTPError as e:
             app_log.error("Failed to delete route [%s]: %s", proxy_url, e)
 
+        self.taken.discard(container.id)
+
         if replace:
-            self.taken.discard(container)
             app_log.debug("Launching a replacement container.")
             yield self._launch_container()
 
@@ -123,12 +125,19 @@ class SpawnPool():
             if not results:
                 app_log.debug("No stale routes to cull.")
 
+            pooled_ids = self._pooled_ids()
+
             for base_path, route in results.items():
                 container_id = route.get('container_id', None)
                 if container_id:
-                    container = PooledContainer(id=container_id, path=base_path)
-                    yield self.release(container)
-                    reaped = reaped + 1
+                    # Don't cull containers that are waiting in the pool and haven't been used
+                    # yet.
+                    if container_id in pooled_ids:
+                        app_log.debug("Not culling unused container [%s].", container_id)
+                    else:
+                        container = PooledContainer(id=container_id, path=base_path)
+                        yield self.release(container)
+                        reaped = reaped + 1
         except HTTPError as e:
             app_log.error("Failed to list stale routes: %s", e)
 
@@ -136,7 +145,8 @@ class SpawnPool():
 
     @gen.coroutine
     def _launch_container(self, path=None):
-        '''Launch a new notebook server in a fresh container and register it with the proxy.'''
+        '''Launch a new notebook server in a fresh container, register it with the proxy, and
+        add it to the pool.'''
 
         if path is None:
             path = user_prefix()
@@ -173,6 +183,8 @@ class SpawnPool():
         container = PooledContainer(id=container_id, path=path)
         app_log.info("Adding container [%s] to the pool.", container)
         self.available.append(container)
+
+        raise gen.Return(container)
 
     @gen.coroutine
     def _wait_for_server(self, ip, port, path, timeout=10, wait_time=0.2):
@@ -217,3 +229,8 @@ class SpawnPool():
 
         app_log.info("Server [%s] at address [%s:%s] has booted! Have at it.",
                      path, ip, port)
+
+    def _pooled_ids(self):
+        '''Build a set of container IDs that are currently waiting in the pool.'''
+
+        return set(container.id for container in self.available)
