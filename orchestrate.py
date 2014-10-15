@@ -168,30 +168,6 @@ class SpawnHandler(RequestHandler):
         return self.settings['proxy_endpoint']
 
     @property
-    def container_ip(self):
-        return self.settings['container_ip']
-
-    @property
-    def container_port(self):
-        return self.settings['container_port']
-
-    @property
-    def mem_limit(self):
-        return self.settings['mem_limit']
-
-    @property
-    def cpu_shares(self):
-        return self.settings['cpu_shares']
-
-    @property
-    def image(self):
-        return self.settings['image']
-
-    @property
-    def ipython_executable(self):
-        return self.settings['ipython_executable']
-
-    @property
     def redirect_uri(self):
         return self.settings['redirect_uri']
 
