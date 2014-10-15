@@ -67,7 +67,15 @@ class SpawnPool():
         return next
 
     @gen.coroutine
-    def release(self, container, replace=False):
+    def adhoc(self, path):
+        '''Launch a container with a fixed path by taking the place of an existing container from
+        the pool.'''
+
+        yield self.release(self.acquire(), False)
+        yield self._launch_container(path)
+
+    @gen.coroutine
+    def release(self, container, replace=True):
         '''Release a container previously returned by acquire. Destroy the container and create a
         new one to take its place.'''
 
@@ -132,15 +140,20 @@ class SpawnPool():
         app_log.debug("The culling has reaped %i souls (containers).", reaped)
 
     @gen.coroutine
-    def _launch_container(self):
+    def _launch_container(self, path=None):
         '''Launch a new notebook server in a fresh container and register it with the proxy.'''
 
-        path = user_prefix()
+        if path is None:
+            path = user_prefix()
 
         app_log.debug("Launching new notebook server for user [%s].", path)
         container_id, host_ip, host_port = yield self.docker.create_notebook_server(base_path=path,
                                                                                     config=self.container_config)
         app_log.debug("Created notebook server for [%s] at [%s:%s]", path, host_ip, host_port)
+
+        # Wait for the server to launch within the container before adding it to the pool or
+        # serving it to a user.
+        yield self._wait_for_server(host_ip, host_port, path)
 
         http_client = AsyncHTTPClient()
         headers = {"Authorization": "token {}".format(self.proxy_token)}
@@ -163,3 +176,47 @@ class SpawnPool():
             app_log.error("Failed to create proxy route to [%s]: %s", path, e)
 
         raise gen.Return(PooledContainer(id=container_id, path=path))
+
+@gen.coroutine
+def _wait_for_server(self, ip, port, path, timeout=10, wait_time=0.2):
+    '''Wait for a server to show up within a newly launched container.'''
+
+    app_log.info("Waiting for a container to launch at [%s:%s].", ip, port)
+    loop = ioloop.IOLoop.current()
+    tic = loop.time()
+
+    # Docker starts listening on a socket before the container is fully launched. Wait for that,
+    # first.
+    while loop.time() - tic < timeout:
+        try:
+            socket.create_connection((ip, port))
+        except socket.error as e:
+            app_log.warn("Socket error on boot: %s", e)
+            if e.errno != errno.ECONNREFUSED:
+                app_log.warn("Error attempting to connect to [%s:%i]: %s",
+                             ip, port, e)
+            yield gen.Task(loop.add_timeout, loop.time() + wait_time)
+        else:
+            break
+
+    # Fudge factor of IPython notebook bootup.
+    # TODO: Implement a webhook in IPython proper to call out when the
+    # notebook server is booted.
+    yield gen.Task(loop.add_timeout, loop.time() + .5)
+
+    # Now, make sure that we can reach the Notebook server.
+    http_client = AsyncHTTPClient()
+    req = HTTPRequest("http://{}:{}/{}".format(ip, port, path))
+
+    while loop.time() - tic < timeout:
+        try:
+            yield http_client.fetch(req)
+        except HTTPError as http_error:
+            code = http_error.code
+            app_log.info("Booting server at [%s], getting HTTP status [%s]", path, code)
+            yield gen.Task(loop.add_timeout, loop.time() + wait_time)
+        else:
+            break
+
+    app_log.info("Server [%s] at address [%s:%s] has booted! Have at it.",
+                 path, ip, port)

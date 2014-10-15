@@ -32,15 +32,11 @@ from spawnpool import SpawnPool
 
 AsyncHTTPClient.configure("tornado.curl_httpclient.CurlAsyncHTTPClient")
 
-def sample_with_replacement(a, size=12):
-    '''Get a random path. If Python had sampling with replacement built in,
-    I would use that. The other alternative is numpy.random.choice, but
-    numpy is overkill for this tiny bit of random pathing.'''
-    return "".join([random.choice(a) for x in range(size)])
 
 class LoadingHandler(RequestHandler):
     def get(self, path=None):
         self.render("loading.html", path=path)
+
 
 class SpawnHandler(RequestHandler):
 
@@ -48,124 +44,21 @@ class SpawnHandler(RequestHandler):
     def get(self, path=None):
         '''Spawns a brand new server'''
 
-        # Take out a leading slash
-        redirect_uri = self.redirect_uri.lstrip("/")
-
         if path is None:
             # No path. Assign a prelaunched container from the pool and redirect to it.
-            prefix = self.pool.acquire().path
-
-            url = "/{}/{}".format(prefix, redirect_uri)
-            app_log.debug("Redirecting [%s] -> [%s].", self.request.path, url)
-            self.redirect(url, permanent=False)
+            path = self.pool.acquire().path
         else:
-            # Scrap an existing container from the pool so the ad-hoc one will take its place.
-            scrap = self.pool.acquire()
-            yield self.pool.release(scrap)
+            # Scrap a container from the pool and replace it with an ad-hoc replacement.
+            # This takes longer, but is necessary to support ad-hoc containers
+            yield self.pool.adhoc(path)
 
-            prefix = path.lstrip('/').split('/', 1)[0]
-            app_log.info("Provisioning a new ad-hoc container for [%s].", prefix)
-            self.write("Provisioning a new ad-hoc container for [{}].".format(prefix))
-
-            container_id, ip, port = yield self.spawner.create_notebook_server(prefix,
-                    image=self.image, ipython_executable=self.ipython_executable,
-                    mem_limit=self.mem_limit, cpu_shares=self.cpu_shares,
-                    container_ip=self.container_ip,
-                    container_port=self.container_port)
-
-            app_log.debug("Launched container [%s] at [%s:%s] with ID [%s]",
-                          prefix,
-                          ip,
-                          port,
-                          container_id)
-            yield self.proxy(ip, port, prefix, container_id)
-
-            # Wait for the notebook server to come up.
-            yield self.wait_for_server(ip, port, prefix)
-
-            if path is None:
-                url = "/{}/{}".format(prefix, redirect_uri)
-            else:
-                url = path
-                if not url.startswith('/'):
-                    url = '/' + url
-            app_log.debug("Redirecting [%s] -> [%s].", self.request.path, url)
-            self.redirect(url, permanent=False)
-
-    @gen.coroutine
-    def wait_for_server(self, ip, port, path, timeout=10, wait_time=0.2):
-        '''Wait for a server to show up at ip:port'''
-        app_log.info("Waiting for {}:{}".format(ip,port))
-        loop = ioloop.IOLoop.current()
-        tic = loop.time()
-        while loop.time() - tic < timeout:
-            try:
-                socket.create_connection((ip, port))
-            except socket.error as e:
-                app_log.warn("Socket error on boot {}".format(e))
-                if e.errno != errno.ECONNREFUSED:
-                    app_log.warn("Error attempting to connect to %s:%i - %s",
-                        ip, port, e,
-                    )
-                yield gen.Task(loop.add_timeout, loop.time() + wait_time)
-            else:
-                break
-
-        # Fudge factor of IPython notebook bootup
-        # TODO: Implement a webhook in IPython proper to call out when the
-        # notebook server is booted
-        yield gen.Task(loop.add_timeout, loop.time() + .5)
-
-        # Now make sure that we can reach the Notebook server
-        http_client = AsyncHTTPClient()
-
-        req = HTTPRequest("http://{}:{}/{}".format(ip,port,path))
-
-        while loop.time() - tic < timeout:
-            try:
-                resp = yield http_client.fetch(req)
-            except HTTPError as http_error:
-                code = http_error.code
-                app_log.info("Booting /{}, getting {}".format(path,code))
-                yield gen.Task(loop.add_timeout, loop.time() + wait_time)
-            else:
-                break
-
-    @gen.coroutine
-    def proxy(self, ip, port, base_path, container_id):
-        http_client = AsyncHTTPClient()
-        headers = {"Authorization": "token {}".format(self.proxy_token)}
-
-        proxy_endpoint = self.proxy_endpoint + "/api/routes/{}".format(base_path)
-        body = json.dumps({
-            "target": "http://{}:{}".format(ip, port),
-            "container_id": container_id,
-        })
-
-        app_log.info("proxying %s to %s", base_path, port)
-
-        req = HTTPRequest(proxy_endpoint,
-                          method="POST",
-                          headers=headers,
-                          body=body)
-
-        resp = yield http_client.fetch(req)
-
-    @property
-    def spawner(self):
-        return self.settings['spawner']
+        url = "/{}/{}".format(prefix, self.redirect_uri)
+        app_log.debug("Redirecting [%s] -> [%s].", self.request.path, url)
+        self.redirect(url, permanent=False)
 
     @property
     def pool(self):
         return self.settings['pool']
-
-    @property
-    def proxy_token(self):
-        return self.settings['proxy_token']
-
-    @property
-    def proxy_endpoint(self):
-        return self.settings['proxy_endpoint']
 
     @property
     def redirect_uri(self):
@@ -259,7 +152,7 @@ def main():
         proxy_token=proxy_token,
         template_path=os.path.join(os.path.dirname(__file__), 'templates'),
         proxy_endpoint=proxy_endpoint,
-        redirect_uri=opts.redirect_uri,
+        redirect_uri=opts.redirect_uri.lstrip('/'),
     )
 
     # Pre-launch a set number of containers, ready to serve.
