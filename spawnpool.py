@@ -8,6 +8,7 @@ from tornado.httpclient import HTTPRequest, HTTPError, AsyncHTTPClient
 from tornado.httputil import url_concat
 
 import string
+import socket
 import random
 import json
 import dockworker
@@ -177,46 +178,46 @@ class SpawnPool():
 
         raise gen.Return(PooledContainer(id=container_id, path=path))
 
-@gen.coroutine
-def _wait_for_server(self, ip, port, path, timeout=10, wait_time=0.2):
-    '''Wait for a server to show up within a newly launched container.'''
+    @gen.coroutine
+    def _wait_for_server(self, ip, port, path, timeout=10, wait_time=0.2):
+        '''Wait for a server to show up within a newly launched container.'''
 
-    app_log.info("Waiting for a container to launch at [%s:%s].", ip, port)
-    loop = ioloop.IOLoop.current()
-    tic = loop.time()
+        app_log.info("Waiting for a container to launch at [%s:%s].", ip, port)
+        loop = ioloop.IOLoop.current()
+        tic = loop.time()
 
-    # Docker starts listening on a socket before the container is fully launched. Wait for that,
-    # first.
-    while loop.time() - tic < timeout:
-        try:
-            socket.create_connection((ip, port))
-        except socket.error as e:
-            app_log.warn("Socket error on boot: %s", e)
-            if e.errno != errno.ECONNREFUSED:
-                app_log.warn("Error attempting to connect to [%s:%i]: %s",
-                             ip, port, e)
-            yield gen.Task(loop.add_timeout, loop.time() + wait_time)
-        else:
-            break
+        # Docker starts listening on a socket before the container is fully launched. Wait for that,
+        # first.
+        while loop.time() - tic < timeout:
+            try:
+                socket.create_connection((ip, port))
+            except socket.error as e:
+                app_log.warn("Socket error on boot: %s", e)
+                if e.errno != errno.ECONNREFUSED:
+                    app_log.warn("Error attempting to connect to [%s:%i]: %s",
+                                 ip, port, e)
+                yield gen.Task(loop.add_timeout, loop.time() + wait_time)
+            else:
+                break
 
-    # Fudge factor of IPython notebook bootup.
-    # TODO: Implement a webhook in IPython proper to call out when the
-    # notebook server is booted.
-    yield gen.Task(loop.add_timeout, loop.time() + .5)
+        # Fudge factor of IPython notebook bootup.
+        # TODO: Implement a webhook in IPython proper to call out when the
+        # notebook server is booted.
+        yield gen.Task(loop.add_timeout, loop.time() + .5)
 
-    # Now, make sure that we can reach the Notebook server.
-    http_client = AsyncHTTPClient()
-    req = HTTPRequest("http://{}:{}/{}".format(ip, port, path))
+        # Now, make sure that we can reach the Notebook server.
+        http_client = AsyncHTTPClient()
+        req = HTTPRequest("http://{}:{}/{}".format(ip, port, path))
 
-    while loop.time() - tic < timeout:
-        try:
-            yield http_client.fetch(req)
-        except HTTPError as http_error:
-            code = http_error.code
-            app_log.info("Booting server at [%s], getting HTTP status [%s]", path, code)
-            yield gen.Task(loop.add_timeout, loop.time() + wait_time)
-        else:
-            break
+        while loop.time() - tic < timeout:
+            try:
+                yield http_client.fetch(req)
+            except HTTPError as http_error:
+                code = http_error.code
+                app_log.info("Booting server at [%s], getting HTTP status [%s]", path, code)
+                yield gen.Task(loop.add_timeout, loop.time() + wait_time)
+            else:
+                break
 
-    app_log.info("Server [%s] at address [%s:%s] has booted! Have at it.",
-                 path, ip, port)
+        app_log.info("Server [%s] at address [%s:%s] has booted! Have at it.",
+                     path, ip, port)
