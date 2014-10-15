@@ -48,7 +48,6 @@ class SpawnPool():
         self.proxy_token = proxy_token
 
         self.available = deque()
-        self.taken = set()
 
     def prepare(self, count):
         '''Synchronously pre-allocate a set number of containers, ready to serve.'''
@@ -61,9 +60,7 @@ class SpawnPool():
     def acquire(self):
         '''Acquire a preallocated container and returns its user path.'''
 
-        next = self.available.pop()
-        self.taken.add(next.id)
-        return next
+        return self.available.pop()
 
     @gen.coroutine
     def adhoc(self, path):
@@ -72,7 +69,7 @@ class SpawnPool():
 
         yield self.release(self.acquire(), False)
         launched = yield self._launch_container(path)
-        self.taken.add(launched.id)
+        raise gen.Return(launched)
 
     @gen.coroutine
     def release(self, container, replace=True):
@@ -95,8 +92,6 @@ class SpawnPool():
             yield http_client.fetch(req)
         except HTTPError as e:
             app_log.error("Failed to delete route [%s]: %s", proxy_url, e)
-
-        self.taken.discard(container.id)
 
         if replace:
             app_log.debug("Launching a replacement container.")
