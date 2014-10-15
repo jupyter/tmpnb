@@ -48,7 +48,7 @@ class SpawnHandler(RequestHandler):
             # No path. Assign a prelaunched container from the pool and redirect to it.
             path = self.pool.acquire().path
         else:
-            path = path.lstrip('/')
+            path = path.lstrip('/').split('/', 1)[0]
 
             # Scrap a container from the pool and replace it with an ad-hoc replacement.
             # This takes longer, but is necessary to support ad-hoc containers
