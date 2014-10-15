@@ -55,9 +55,7 @@ class SpawnPool():
 
         app_log.info("Preparing %i containers.", count)
         for i in xrange(0, count):
-            nb_container = ioloop.IOLoop.instance().run_sync(self._launch_container)
-            self.available.append(nb_container)
-            app_log.debug("Pre-launched container [%s].", nb_container)
+            ioloop.IOLoop.instance().run_sync(self._launch_container)
         app_log.info("%i containers successfully prepared.", count)
 
     def acquire(self):
@@ -100,9 +98,7 @@ class SpawnPool():
         if replace:
             self.taken.discard(container)
             app_log.debug("Launching a replacement container.")
-            new_container = yield self._launch_container()
-            self.available.append(new_container)
-            app_log.info("Replacement container [%s] is up and ready to go.", new_container)
+            yield self._launch_container()
 
     @gen.coroutine
     def cull(self, delta=None):
@@ -174,7 +170,9 @@ class SpawnPool():
         except HTTPError as e:
             app_log.error("Failed to create proxy route to [%s]: %s", path, e)
 
-        raise gen.Return(PooledContainer(id=container_id, path=path))
+        container = PooledContainer(id=container_id, path=path)
+        app_log.info("Adding container [%s] to the pool.", container)
+        self.available.append(container)
 
     @gen.coroutine
     def _wait_for_server(self, ip, port, path, timeout=10, wait_time=0.2):
