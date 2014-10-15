@@ -103,8 +103,8 @@ def main():
     tornado.options.define('redirect_uri', default="/tree",
         help="URI to redirect users to upon initial notebook launch"
     )
-    tornado.options.define('pool_size', default=0,
-        help="Number of containers to prelaunch and delegate to a spawn pool"
+    tornado.options.define('pool_size', default=3,
+        help="Capacity for containers on this system. Will be prelaunched at startup."
     )
 
     tornado.options.parse_command_line()
