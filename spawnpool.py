@@ -36,16 +36,15 @@ class SpawnPool():
     def __init__(self,
                  proxy_endpoint,
                  proxy_token,
-                 docker_host='unix://var/run/docker.sock',
-                 version='1.12',
-                 timeout=20,
-                 max_workers=64):
+                 spawner,
+                 container_config):
         '''Create a new, empty spawn pool, with nothing preallocated.'''
+
+        self.docker = spawner
+        self.container_config = container_config
 
         self.proxy_endpoint = proxy_endpoint
         self.proxy_token = proxy_token
-
-        self.docker = dockworker.DockerSpawner(docker_host, version, timeout, max_workers)
 
         self.available = deque()
         self.taken = set()
@@ -55,7 +54,7 @@ class SpawnPool():
 
         app_log.info("Preparing %i containers.", count)
         for i in xrange(0, count):
-            nb_container = ioloop.IOLoop.instance().run_sync(self._launch_notebook_server)
+            nb_container = ioloop.IOLoop.instance().run_sync(self._launch_container)
             self.available.append(nb_container)
             app_log.debug("Pre-launched container [%s].", nb_container)
         app_log.info("%i containers successfully prepared.", count)
@@ -73,7 +72,7 @@ class SpawnPool():
         new one to take its place.'''
 
         try:
-            app_log.info("Killing used container [%s].", container)
+            app_log.info("Stopping used container [%s].", container)
             yield self.docker.stop(container.id)
 
             app_log.debug("Removing killed container [%s].", container)
@@ -94,7 +93,7 @@ class SpawnPool():
         if replace:
             self.taken.discard(container)
             app_log.debug("Launching a replacement container.")
-            new_container = yield self._launch_notebook_server()
+            new_container = yield self._launch_container()
             self.available.append(new_container)
             app_log.info("Replacement container [%s] is up and ready to go.", new_container)
 
@@ -133,13 +132,14 @@ class SpawnPool():
         app_log.debug("The culling has reaped %i souls (containers).", reaped)
 
     @gen.coroutine
-    def _launch_notebook_server(self):
+    def _launch_container(self):
         '''Launch a new notebook server in a fresh container and register it with the proxy.'''
 
         path = user_prefix()
 
         app_log.debug("Launching new notebook server for user [%s].", path)
-        container_id, host_ip, host_port = yield self.docker.create_notebook_server(base_path=path)
+        container_id, host_ip, host_port = yield self.docker.create_notebook_server(base_path=path,
+                                                                                    config=self.container_config)
         app_log.debug("Created notebook server for [%s] at [%s:%s]", path, host_ip, host_port)
 
         http_client = AsyncHTTPClient()

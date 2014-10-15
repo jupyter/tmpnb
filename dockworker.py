@@ -2,6 +2,7 @@ import datetime
 import json
 
 from concurrent.futures import ThreadPoolExecutor
+from collections import namedtuple
 
 import docker
 
@@ -12,6 +13,11 @@ from tornado.httputil import url_concat
 from tornado.httpclient import HTTPRequest, HTTPError, AsyncHTTPClient
 
 AsyncHTTPClient.configure("tornado.curl_httpclient.CurlAsyncHTTPClient")
+
+ContainerConfig = namedtuple('ImageConfig', [
+    'image', 'ipython_executable', 'mem_limit', 'cpu_shares', 'container_ip', 'container_port'
+])
+
 
 class AsyncDockerClient():
     '''Completely ridiculous wrapper for a Docker client that returns futures
@@ -41,10 +47,11 @@ class AsyncDockerClient():
 
 
 class DockerSpawner():
-    def __init__(self, docker_host='unix://var/run/docker.sock',
-                       version='1.12',
-                       timeout=20,
-                       max_workers=64):
+    def __init__(self,
+                 docker_host='unix://var/run/docker.sock',
+                 version='1.12',
+                 timeout=20,
+                 max_workers=64):
 
         blocking_docker_client = docker.Client(base_url=docker_host,
                                                version=version,
@@ -57,18 +64,10 @@ class DockerSpawner():
         self.docker_client = async_docker_client
 
     @gen.coroutine
-    def create_notebook_server(self, base_path,
-                               image="jupyter/demo",
-                               ipython_executable="ipython3",
-                               mem_limit="512m",
-                               cpu_shares="1",
-                               container_ip="127.0.0.1",
-                               container_port=8888):
-        '''
-        Creates a notebook_server running off of `base_path`.
+    def create_notebook_server(self, base_path, config):
+        '''Creates a notebook_server running off of `base_path`.
 
-        returns the container_id, ip, port in a Future
-        '''
+        Returns the container_id, ip, port in a Future.'''
 
         templates = ['/srv/ga',
                      '/srv/ipython/IPython/html',
@@ -78,13 +77,13 @@ class DockerSpawner():
 
         ipython_args = [
                 "notebook", "--no-browser",
-                "--port {}".format(container_port),
+                "--port {}".format(config.container_port),
                 "--ip=0.0.0.0",
                 "--NotebookApp.base_url=/{}".format(base_path),
                 "--NotebookApp.tornado_settings=\"{}\"".format(tornado_settings)
         ]
 
-        ipython_command = ipython_executable + " " + " ".join(ipython_args)
+        ipython_command = config.ipython_executable + " " + " ".join(ipython_args)
 
         command = [
             "/bin/sh",
@@ -92,10 +91,10 @@ class DockerSpawner():
             ipython_command
         ]
 
-        resp = yield self.docker_client.create_container(image=image,
-                                                    command=command,
-                                                    mem_limit=mem_limit,
-                                                    cpu_shares=cpu_shares)
+        resp = yield self.docker_client.create_container(image=config.image,
+                                                         command=command,
+                                                         mem_limit=config.mem_limit,
+                                                         cpu_shares=config.cpu_shares)
 
         docker_warnings = resp['Warnings']
         if docker_warnings is not None:
@@ -105,10 +104,10 @@ class DockerSpawner():
         app_log.info("Created container {}".format(container_id))
 
         yield self.docker_client.start(container_id,
-                                       port_bindings={container_port: (container_ip,)})
+                                       port_bindings={config.container_port: (config.container_ip,)})
 
         container_network = yield self.docker_client.port(container_id,
-                                                          container_port)
+                                                          config.container_port)
 
         host_port = container_network[0]['HostPort']
         host_ip = container_network[0]['HostIp']

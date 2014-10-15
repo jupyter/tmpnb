@@ -27,7 +27,7 @@ from tornado.httputil import url_concat
 from tornado.httpclient import HTTPRequest, HTTPError, AsyncHTTPClient
 
 import dockworker
-from dockworker import AsyncDockerClient
+from dockworker import AsyncDockerClient, ContainerConfig
 from spawnpool import SpawnPool
 
 AsyncHTTPClient.configure("tornado.curl_httpclient.CurlAsyncHTTPClient")
@@ -246,6 +246,15 @@ def main():
     proxy_endpoint = os.environ.get('CONFIGPROXY_ENDPOINT', "http://127.0.0.1:8001")
     docker_host = os.environ.get('DOCKER_HOST', 'unix://var/run/docker.sock')
 
+    container_config = ContainerConfig(
+        image=opts.image,
+        ipython_executable=opts.ipython_executable,
+        mem_limit=opts.mem_limit,
+        cpu_shares=opts.cpu_shares,
+        container_ip=opts.container_ip,
+        container_port=opts.container_port
+    )
+
     blocking_docker_client = docker.Client(base_url=docker_host, version=opts.docker_version, timeout=20)
 
     executor = ThreadPoolExecutor(max_workers=opts.max_dock_workers)
@@ -260,10 +269,8 @@ def main():
 
     pool = SpawnPool(proxy_endpoint=proxy_endpoint,
                      proxy_token=proxy_token,
-                     docker_host=docker_host,
-                     version=opts.docker_version,
-                     timeout=20,
-                     max_workers=opts.max_dock_workers)
+                     spawner=spawner,
+                     container_config=container_config)
 
     settings = dict(
         static_path=os.path.join(os.path.dirname(__file__), "static"),
@@ -273,15 +280,9 @@ def main():
         spawner=spawner,
         pool=pool,
         autoescape=None,
-        container_ip = opts.container_ip,
-        container_port = opts.container_port,
-        ipython_executable = opts.ipython_executable,
         proxy_token=proxy_token,
         template_path=os.path.join(os.path.dirname(__file__), 'templates'),
         proxy_endpoint=proxy_endpoint,
-        mem_limit=opts.mem_limit,
-        cpu_shares=opts.cpu_shares,
-        image=opts.image,
         redirect_uri=opts.redirect_uri,
     )
 
