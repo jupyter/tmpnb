@@ -109,9 +109,22 @@ class DockerSpawner():
         raise gen.Return((container_id, host_ip, int(host_port)))
 
     @gen.coroutine
-    def shutdown_notebook_server(self, container_id):
+    def shutdown_notebook_server(self, container_id, alive=True):
         '''Gracefully stop a running container.'''
 
-        yield self.docker_client.stop(container_id)
-
+        if alive:
+            yield self.docker_client.stop(container_id)
         yield self.docker_client.remove_container(container_id)
+
+    @gen.coroutine
+    def list_notebook_servers(self, config, all=True):
+        '''List containers that were launched from a specific image.'''
+
+        existing = yield self.docker_client.containers(all=all, trunc=False)
+
+        untagged_image = config.image.split(':')[0]
+        def has_matching_image(container):
+            return container['Image'].split(':')[0] == untagged_image
+
+        matching = [container for container in existing if has_matching_image(container)]
+        raise gen.Return(matching)
