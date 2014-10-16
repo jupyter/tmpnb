@@ -32,7 +32,7 @@ def user_prefix():
 PooledContainer = namedtuple('PooledContainer', ['id', 'path'])
 
 
-class EmptyPoolError():
+class EmptyPoolError(Exception):
     '''Exception raised when a container is requested from an empty pool.'''
 
     pass
