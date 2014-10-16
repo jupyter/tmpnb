@@ -127,7 +127,8 @@ def main():
     pool = spawnpool.SpawnPool(proxy_endpoint=proxy_endpoint,
                                proxy_token=proxy_token,
                                spawner=spawner,
-                               container_config=container_config)
+                               container_config=container_config,
+                               capacity=opts.pool_size)
 
     ioloop = tornado.ioloop.IOLoop().instance()
 
@@ -146,17 +147,20 @@ def main():
     )
 
     # Synchronously pre-launch a set number of containers, ready to serve.
-    ioloop.run_sync(lambda: pool.prepare(opts.pool_size))
+    @gen.coroutine
+    def setup_pool():
+        if opts.cull_timeout:
+            yield pool.cull(datetime.timedelta(seconds=opts.cull_timeout))
+        yield pool.prelaunch()
+
+    ioloop.run_sync(setup_pool)
 
     # check for idle containers and cull them
-    cull_timeout = opts.cull_timeout
-
-    if cull_timeout:
-        delta = datetime.timedelta(seconds=cull_timeout)
-        cull_ms = cull_timeout * 1e3
-        app_log.info("Culling every %i seconds", cull_timeout)
+    if opts.cull_timeout:
+        cull_ms = opts.cull_timeout * 1e3
+        app_log.info("Culling every %i seconds", opts.cull_timeout)
         culler = tornado.ioloop.PeriodicCallback(
-            lambda : pool.cull(delta),
+            lambda : pool.cull(datetime.timedelta(seconds=opts.cull_timeout)),
             cull_ms
         )
         culler.start()
