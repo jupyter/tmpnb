@@ -146,6 +146,8 @@ def main():
                      spawner=spawner,
                      container_config=container_config)
 
+    ioloop = tornado.ioloop.IOLoop().instance()
+
     settings = dict(
         static_path=os.path.join(os.path.dirname(__file__), "static"),
         cookie_secret=uuid.uuid4(),
@@ -160,8 +162,8 @@ def main():
         redirect_uri=opts.redirect_uri.lstrip('/'),
     )
 
-    # Pre-launch a set number of containers, ready to serve.
-    pool.prepare(opts.pool_size)
+    # Synchronously pre-launch a set number of containers, ready to serve.
+    ioloop.run_sync(lambda: pool.prepare(opts.pool_size))
 
     # check for idle containers and cull them
     cull_timeout = opts.cull_timeout
@@ -182,7 +184,7 @@ def main():
 
     application = tornado.web.Application(handlers, **settings)
     application.listen(opts.port)
-    tornado.ioloop.IOLoop().instance().start()
+    ioloop.start()
 
 if __name__ == "__main__":
     main()

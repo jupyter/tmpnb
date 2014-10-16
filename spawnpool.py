@@ -50,12 +50,12 @@ class SpawnPool():
         self.available = deque()
         self.releasing = set()
 
+    @gen.coroutine
     def prepare(self, count):
-        '''Synchronously pre-allocate a set number of containers, ready to serve.'''
+        '''Pre-allocate a set number of containers, ready to serve.'''
 
         app_log.info("Preparing %i containers.", count)
-        for i in xrange(0, count):
-            ioloop.IOLoop.instance().run_sync(self._launch_container)
+        yield [self._launch_container() for i in xrange(0, count)]
         app_log.info("%i containers successfully prepared.", count)
 
     def acquire(self):
