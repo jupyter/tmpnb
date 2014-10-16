@@ -7,6 +7,7 @@ from tornado.log import app_log
 from tornado.httpclient import HTTPRequest, HTTPError, AsyncHTTPClient
 from tornado.httputil import url_concat
 
+import errno
 import string
 import socket
 import random
