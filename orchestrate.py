@@ -16,7 +16,7 @@ from tornado import gen, web
 from tornado import ioloop
 
 import dockworker
-from spawnpool import SpawnPool
+import spawnpool
 
 
 class LoadingHandler(RequestHandler):
@@ -30,22 +30,26 @@ class SpawnHandler(RequestHandler):
     def get(self, path=None):
         '''Spawns a brand new server'''
 
-        if path is None:
-            # No path. Assign a prelaunched container from the pool and redirect to it.
-            path = self.pool.acquire().path
-            app_log.info("Allocated [%s] from the pool.", path)
-        else:
-            path = path.lstrip('/').split('/', 1)[0]
+        try:
+            if path is None:
+                # No path. Assign a prelaunched container from the pool and redirect to it.
+                path = self.pool.acquire().path
+                app_log.info("Allocated [%s] from the pool.", path)
+            else:
+                path = path.lstrip('/').split('/', 1)[0]
 
-            # Scrap a container from the pool and replace it with an ad-hoc replacement.
-            # This takes longer, but is necessary to support ad-hoc containers
-            yield self.pool.adhoc(path)
+                # Scrap a container from the pool and replace it with an ad-hoc replacement.
+                # This takes longer, but is necessary to support ad-hoc containers
+                yield self.pool.adhoc(path)
 
-            app_log.info("Allocated ad-hoc container at [%s].", path)
+                app_log.info("Allocated ad-hoc container at [%s].", path)
 
-        url = "/{}/{}".format(path, self.redirect_uri)
-        app_log.debug("Redirecting [%s] -> [%s].", self.request.path, url)
-        self.redirect(url, permanent=False)
+            url = "/{}/{}".format(path, self.redirect_uri)
+            app_log.debug("Redirecting [%s] -> [%s].", self.request.path, url)
+            self.redirect(url, permanent=False)
+        except spawnpool.EmptyPoolError:
+            app_log.warning("The container pool is empty!")
+            self.render("full.html")
 
     @property
     def pool(self):
@@ -120,10 +124,10 @@ def main():
                                        timeout=20,
                                        max_workers=opts.max_dock_workers)
 
-    pool = SpawnPool(proxy_endpoint=proxy_endpoint,
-                     proxy_token=proxy_token,
-                     spawner=spawner,
-                     container_config=container_config)
+    pool = spawnpool.SpawnPool(proxy_endpoint=proxy_endpoint,
+                               proxy_token=proxy_token,
+                               spawner=spawner,
+                               container_config=container_config)
 
     ioloop = tornado.ioloop.IOLoop().instance()
 
