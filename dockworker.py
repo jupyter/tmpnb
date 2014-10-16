@@ -1,6 +1,3 @@
-import datetime
-import json
-
 from concurrent.futures import ThreadPoolExecutor
 from collections import namedtuple
 
@@ -9,10 +6,7 @@ import docker
 from tornado.log import app_log
 
 from tornado import gen, web
-from tornado.httputil import url_concat
-from tornado.httpclient import HTTPRequest, HTTPError, AsyncHTTPClient
 
-AsyncHTTPClient.configure("tornado.curl_httpclient.CurlAsyncHTTPClient")
 
 ContainerConfig = namedtuple('ImageConfig', [
     'image', 'ipython_executable', 'mem_limit', 'cpu_shares', 'container_ip', 'container_port'
