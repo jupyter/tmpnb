@@ -44,11 +44,13 @@ class SpawnPool():
                  proxy_endpoint,
                  proxy_token,
                  spawner,
-                 container_config):
+                 container_config,
+                 capacity):
         '''Create a new, empty spawn pool, with nothing preallocated.'''
 
         self.docker = spawner
         self.container_config = container_config
+        self.capacity = capacity
 
         self.proxy_endpoint = proxy_endpoint
         self.proxy_token = proxy_token
@@ -57,10 +59,13 @@ class SpawnPool():
         self.releasing = set()
 
     @gen.coroutine
-    def prepare(self, count):
+    def prelaunch(self):
         '''Pre-allocate a set number of containers, ready to serve.'''
 
-        app_log.info("Preparing %i containers.", count)
+        existing = yield self._clean_orphaned_containers()
+
+        count = max(self.capacity - existing, 0)
+        app_log.info("Preparing %i new containers.", count)
         yield [self._launch_container() for i in xrange(0, count)]
         app_log.info("%i containers successfully prepared.", count)
 
@@ -84,11 +89,15 @@ class SpawnPool():
         raise gen.Return(launched)
 
     @gen.coroutine
-    def release(self, container, replace=True):
-        '''Release a container previously returned by acquire. Destroy the container and create a
-        new one to take its place.'''
+    def release(self, container, replace_if_room=True):
+        '''Shut down a container and delete its proxy entry.
+
+        Destroy the container in an orderly fashion. If requested and capacity is remaining, create
+        a new one to take its place.'''
 
         if container.id in self.releasing:
+            # This can happen if culling runs again before the previous run finishes deleting
+            # everything.
             app_log.debug("Container [%s] is already being released.", container)
             return
 
@@ -111,9 +120,16 @@ class SpawnPool():
         except HTTPError as e:
             app_log.error("Failed to delete route [%s]: %s", proxy_url, e)
 
-        if replace:
-            app_log.debug("Launching a replacement container.")
-            yield self._launch_container()
+        if replace_if_room:
+            running = yield self.docker.list_notebook_servers(self.container_config,
+                                                                    all=False)
+            if len(running) + 1 <= self.capacity:
+                app_log.debug("Launching a replacement container.")
+                yield self._launch_container()
+            else:
+                app_log.info("Declining to launch a new container because [%i] containers are" +
+                             " already running, and the capacity is [%i].",
+                             len(running), self.capacity)
 
         self.releasing.remove(container.id)
 
@@ -253,6 +269,65 @@ class SpawnPool():
 
         app_log.info("Server [%s] at address [%s:%s] has booted! Have at it.",
                      path, ip, port)
+
+    @gen.coroutine
+    def _clean_orphaned_containers(self):
+        '''Clean up any pre-existing, stale containers.
+
+        These are containers that exist in Docker, but have no corresponding proxy entry. The
+        regular culling process will handle removing active containers as they expire and
+        re-launching new ones up to the pool capacity.
+
+        Returns the number of existing containers that were *not* cleaned out, so that the
+        prelaunch process can take this into account and not overload the server.'''
+
+        app_log.info("Cleaning out any orphaned containers.")
+
+        def is_alive(container):
+            return container['Status'].startswith('Up')
+
+        docker_results = yield self.docker.list_notebook_servers(self.container_config,
+                                                                 all=True)
+
+        # Remove any stopped containers.
+        stopped_ids = [container['Id'] for container in docker_results if not is_alive(container)]
+        app_log.debug("Containers that are stopped: [%i]", len(stopped_ids))
+        if stopped_ids:
+            yield [self.docker.shutdown_notebook_server(id, alive=False) for id in stopped_ids]
+            app_log.info("Removed [%i] stopped containers.", len(stopped_ids))
+
+        # Identify the living containers.
+        docker_ids = [container['Id'] for container in docker_results if is_alive(container)]
+        app_log.debug("Containers that already exist in Docker: [%i]", len(docker_ids))
+
+        # Identity the containers that have live entries in the proxy.
+        proxy_ids = set()
+        url = "{}/api/routes".format(self.proxy_endpoint)
+        headers = {"Authorization": "token {}".format(self.proxy_token)}
+        req = HTTPRequest(url, method="GET", headers=headers)
+        http_client = AsyncHTTPClient()
+        try:
+            resp = yield http_client.fetch(req)
+            results = json.loads(resp.body.decode('utf8', 'replace'))
+
+            for base_path, route in results.items():
+                container_id = route.get('container_id', None)
+                if container_id:
+                    proxy_ids.add(container_id)
+        except HTTPError as e:
+            app_log.error("Unable to list existing proxy entries: %s", e)
+            return
+        app_log.debug("Containers that are routed in the proxy: [%i]", len(proxy_ids))
+
+        # Shut down any containers that are alive, but don't have proxy entries.
+        stale_ids = [id for id in docker_ids if id not in proxy_ids]
+        app_log.debug("Deleting [%i] stale containers from Docker.", len(stale_ids))
+        yield [self.docker.shutdown_notebook_server(id) for id in stale_ids]
+
+        # Return the number of containers that are still running.
+        left = len(docker_ids) - len(stale_ids)
+        app_log.debug("There are [%i] active containers already running on this server.", left)
+        raise gen.Return(left)
 
     def _pooled_ids(self):
         '''Build a set of container IDs that are currently waiting in the pool.'''
