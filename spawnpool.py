@@ -48,7 +48,7 @@ class SpawnPool():
                  capacity):
         '''Create a new, empty spawn pool, with nothing preallocated.'''
 
-        self.docker = spawner
+        self.spawner = spawner
         self.container_config = container_config
         self.capacity = capacity
 
@@ -105,7 +105,7 @@ class SpawnPool():
 
         try:
             app_log.info("Shutting down used container [%s].", container)
-            yield self.docker.shutdown_notebook_server(container.id)
+            yield self.spawner.shutdown_notebook_server(container.id)
             app_log.debug("Inactive container [%s] has been shut down.", container)
         except Exception as e:
             app_log.error("Unable to cull container [%s]: %s", container, e)
@@ -121,7 +121,7 @@ class SpawnPool():
             app_log.error("Failed to delete route [%s]: %s", proxy_url, e)
 
         if replace_if_room:
-            running = yield self.docker.list_notebook_servers(self.container_config,
+            running = yield self.spawner.list_notebook_servers(self.container_config,
                                                                     all=False)
             if len(running) + 1 <= self.capacity:
                 app_log.debug("Launching a replacement container.")
@@ -192,7 +192,7 @@ class SpawnPool():
             path = user_prefix()
 
         app_log.debug("Launching new notebook server for user [%s].", path)
-        create_result = yield self.docker.create_notebook_server(base_path=path,
+        create_result = yield self.spawner.create_notebook_server(base_path=path,
                                                                  container_config=self.container_config)
         container_id, host_ip, host_port = create_result
         app_log.debug("Created notebook server for [%s] at [%s:%s]", path, host_ip, host_port)
@@ -287,14 +287,14 @@ class SpawnPool():
         def is_alive(container):
             return container['Status'].startswith('Up')
 
-        docker_results = yield self.docker.list_notebook_servers(self.container_config,
+        docker_results = yield self.spawner.list_notebook_servers(self.container_config,
                                                                  all=True)
 
         # Remove any stopped containers.
         stopped_ids = [container['Id'] for container in docker_results if not is_alive(container)]
         app_log.debug("Containers that are stopped: [%i]", len(stopped_ids))
         if stopped_ids:
-            yield [self.docker.shutdown_notebook_server(id, alive=False) for id in stopped_ids]
+            yield [self.spawner.shutdown_notebook_server(id, alive=False) for id in stopped_ids]
             app_log.info("Removed [%i] stopped containers.", len(stopped_ids))
 
         # Identify the living containers.
@@ -323,7 +323,7 @@ class SpawnPool():
         # Shut down any containers that are alive, but don't have proxy entries.
         stale_ids = [id for id in docker_ids if id not in proxy_ids]
         app_log.debug("Deleting [%i] stale containers from Docker.", len(stale_ids))
-        yield [self.docker.shutdown_notebook_server(id) for id in stale_ids]
+        yield [self.spawner.shutdown_notebook_server(id) for id in stale_ids]
 
         # Return the number of containers that are still running.
         left = len(docker_ids) - len(stale_ids)
