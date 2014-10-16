@@ -78,7 +78,8 @@ class SpawnPool():
         new one to take its place.'''
 
         if container.id in self.releasing:
-            raise gen.Return(None)
+            app_log.debug("Container [%s] is already being released.", container)
+            return
 
         self.releasing.add(container.id)
 
@@ -106,20 +107,26 @@ class SpawnPool():
         self.releasing.remove(container.id)
 
     @gen.coroutine
-    def cull(self, delta=None):
-        if delta is None:
-            delta = timedelta(minutes=60)
+    def cull(self, max_age=None):
+        '''Destroy and replace any used containers that have been idle.
+
+        A container is considered "used" if it isn't still present in the pool. If no max_age is
+        specified, an hour is used.'''
+
+        if max_age is None:
+            max_age = timedelta(minutes=60)
         http_client = AsyncHTTPClient()
         app_log.debug("The culling has begun.")
-        reaped = 0
 
-        dt = datetime.utcnow() - delta
+        dt = datetime.utcnow() - max_age
         cutoff = dt.isoformat() + 'Z'
         url = url_concat("{}/api/routes".format(self.proxy_endpoint), {'inactive_since': cutoff})
         headers = {"Authorization": "token {}".format(self.proxy_token)}
 
         app_log.debug("Fetching sessions inactive since [%s].", cutoff)
         req = HTTPRequest(url, method="GET", headers=headers)
+
+        reap = []
 
         try:
             resp = yield http_client.fetch(req)
@@ -138,13 +145,16 @@ class SpawnPool():
                     if container_id in pooled_ids:
                         app_log.debug("Not culling unused container [%s].", container_id)
                     else:
-                        container = PooledContainer(id=container_id, path=base_path)
-                        yield self.release(container)
-                        reaped = reaped + 1
+                        reap.append(PooledContainer(id=container_id, path=base_path))
         except HTTPError as e:
             app_log.error("Failed to list stale routes: %s", e)
 
-        app_log.debug("The culling has reaped %i souls (containers).", reaped)
+        if reap:
+            yield [self.release(each) for each in reap]
+        else:
+            app_log.debug("No stale containers to reap.")
+
+        app_log.debug("The culling has reaped %i souls (containers).", len(reap))
 
     @gen.coroutine
     def _launch_container(self, path=None):
