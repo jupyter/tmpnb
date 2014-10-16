@@ -32,6 +32,11 @@ def user_prefix():
 PooledContainer = namedtuple('PooledContainer', ['id', 'path'])
 
 
+class EmptyPoolError():
+    '''Exception raised when a container is requested from an empty pool.'''
+
+    pass
+
 class SpawnPool():
     '''Manage a pool of precreated Docker containers.'''
 
@@ -60,7 +65,12 @@ class SpawnPool():
         app_log.info("%i containers successfully prepared.", count)
 
     def acquire(self):
-        '''Acquire a preallocated container and returns its user path.'''
+        '''Acquire a preallocated container and returns its user path.
+
+        An EmptyPoolError is raised if no containers are ready.'''
+
+        if not self.available:
+            raise EmptyPoolError()
 
         return self.available.pop()
 
