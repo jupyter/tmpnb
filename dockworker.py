@@ -58,7 +58,7 @@ class DockerSpawner():
         self.docker_client = async_docker_client
 
     @gen.coroutine
-    def create_notebook_server(self, base_path, config):
+    def create_notebook_server(self, base_path, container_config):
         '''Creates a notebook_server running off of `base_path`.
 
         Returns the container_id, ip, port in a Future.'''
@@ -71,13 +71,13 @@ class DockerSpawner():
 
         ipython_args = [
                 "notebook", "--no-browser",
-                "--port {}".format(config.container_port),
+                "--port {}".format(container_config.container_port),
                 "--ip=0.0.0.0",
                 "--NotebookApp.base_url=/{}".format(base_path),
                 "--NotebookApp.tornado_settings=\"{}\"".format(tornado_settings)
         ]
 
-        ipython_command = config.ipython_executable + " " + " ".join(ipython_args)
+        ipython_command = container_config.ipython_executable + " " + " ".join(ipython_args)
 
         command = [
             "/bin/sh",
@@ -85,10 +85,10 @@ class DockerSpawner():
             ipython_command
         ]
 
-        resp = yield self.docker_client.create_container(image=config.image,
+        resp = yield self.docker_client.create_container(image=container_config.image,
                                                          command=command,
-                                                         mem_limit=config.mem_limit,
-                                                         cpu_shares=config.cpu_shares)
+                                                         mem_limit=container_config.mem_limit,
+                                                         cpu_shares=container_config.cpu_shares)
 
         docker_warnings = resp['Warnings']
         if docker_warnings is not None:
@@ -97,11 +97,13 @@ class DockerSpawner():
         container_id = resp['Id']
         app_log.info("Created container {}".format(container_id))
 
-        yield self.docker_client.start(container_id,
-                                       port_bindings={config.container_port: (config.container_ip,)})
+        port_bindings = {
+            container_config.container_port: (container_config.container_ip,)
+        }
+        yield self.docker_client.start(container_id, port_bindings=port_bindings)
 
         container_network = yield self.docker_client.port(container_id,
-                                                          config.container_port)
+                                                          container_config.container_port)
 
         host_port = container_network[0]['HostPort']
         host_ip = container_network[0]['HostIp']
@@ -117,12 +119,12 @@ class DockerSpawner():
         yield self.docker_client.remove_container(container_id)
 
     @gen.coroutine
-    def list_notebook_servers(self, config, all=True):
+    def list_notebook_servers(self, container_config, all=True):
         '''List containers that were launched from a specific image.'''
 
         existing = yield self.docker_client.containers(all=all, trunc=False)
 
-        untagged_image = config.image.split(':')[0]
+        untagged_image = container_config.image.split(':')[0]
         def has_matching_image(container):
             return container['Image'].split(':')[0] == untagged_image
 

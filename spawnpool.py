@@ -192,8 +192,9 @@ class SpawnPool():
             path = user_prefix()
 
         app_log.debug("Launching new notebook server for user [%s].", path)
-        container_id, host_ip, host_port = yield self.docker.create_notebook_server(base_path=path,
-                                                                                    config=self.container_config)
+        create_result = yield self.docker.create_notebook_server(base_path=path,
+                                                                 container_config=self.container_config)
+        container_id, host_ip, host_port = create_result
         app_log.debug("Created notebook server for [%s] at [%s:%s]", path, host_ip, host_port)
 
         # Wait for the server to launch within the container before adding it to the pool or
