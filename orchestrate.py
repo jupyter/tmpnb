@@ -64,8 +64,11 @@ class SpawnHandler(RequestHandler):
         return self.settings['redirect_uri']
 
 def main():
+    tornado.options.define('cull_period', default=600,
+        help="Interval (s) for culling idle containers."
+    )
     tornado.options.define('cull_timeout', default=3600,
-        help="Timeout (s) for culling idle"
+        help="Timeout (s) for culling idle containers."
     )
     tornado.options.define('container_ip', default='127.0.0.1',
         help="IP address for containers to bind to"
@@ -161,8 +164,11 @@ def main():
 
     # check for idle containers and cull them
     if opts.cull_timeout:
-        cull_ms = opts.cull_timeout * 1e3
-        app_log.info("Culling every %i seconds", opts.cull_timeout)
+        cull_ms = opts.cull_period * 1e3
+
+        app_log.info("Culling containers unused for %i seconds every %i seconds.",
+                     opts.cull_timeout,
+                     opts.cull_period)
         culler = tornado.ioloop.PeriodicCallback(
             lambda : pool.cull(datetime.timedelta(seconds=opts.cull_timeout)),
             cull_ms
