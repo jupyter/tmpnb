@@ -1,4 +1,5 @@
 # Configuration parameters
+CULL_PERIOD ?= 30
 CULL_TIMEOUT ?= 60
 LOGGING ?= debug
 POOL_SIZE ?= 3
@@ -23,8 +24,8 @@ proxy: proxy-image
 tmpnb: minimal-image tmpnb-image
 	docker run --net=host -d -e CONFIGPROXY_AUTH_TOKEN=devtoken \
 		-v /var/run/docker.sock:/docker.sock jupyter/tmpnb python orchestrate.py \
-		--image=jupyter/minimal --cull_timeout=$(CULL_TIMEOUT) --logging=$(LOGGING) \
-		--pool_size=$(POOL_SIZE)
+		--image=jupyter/minimal --cull_timeout=$(CULL_TIMEOUT) --cull_period=$(CULL_PERIOD) \
+		--logging=$(LOGGING) --pool_size=$(POOL_SIZE)
 
 dev: cleanup proxy tmpnb
 
