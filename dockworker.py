@@ -12,6 +12,9 @@ ContainerConfig = namedtuple('ImageConfig', [
     'image', 'ipython_executable', 'mem_limit', 'cpu_shares', 'container_ip', 'container_port'
 ])
 
+# Number of times to retry API calls before giving up.
+RETRIES = 5
+
 
 class AsyncDockerClient():
     '''Completely ridiculous wrapper for a Docker client that returns futures
@@ -85,10 +88,11 @@ class DockerSpawner():
             ipython_command
         ]
 
-        resp = yield self.docker_client.create_container(image=container_config.image,
-                                                         command=command,
-                                                         mem_limit=container_config.mem_limit,
-                                                         cpu_shares=container_config.cpu_shares)
+        resp = yield self._with_retries(RETRIES,
+                                        self.docker_client.create_container,
+                                        image=container_config.image,
+                                        mem_limit=container_config.mem_limit,
+                                        cpu_shares=container_config.cpu_shares)
 
         docker_warnings = resp['Warnings']
         if docker_warnings is not None:
@@ -100,10 +104,15 @@ class DockerSpawner():
         port_bindings = {
             container_config.container_port: (container_config.container_ip,)
         }
-        yield self.docker_client.start(container_id, port_bindings=port_bindings)
+        yield self._with_retries(RETRIES,
+                                 self.docker_client.start,
+                                 container_id,
+                                 port_bindings=port_bindings)
 
-        container_network = yield self.docker_client.port(container_id,
-                                                          container_config.container_port)
+        container_network = yield self._with_retries(RETRIES,
+                                                     self.docker_client.port,
+                                                     container_id,
+                                                     container_config.container_port)
 
         host_port = container_network[0]['HostPort']
         host_ip = container_network[0]['HostIp']
@@ -115,14 +124,17 @@ class DockerSpawner():
         '''Gracefully stop a running container.'''
 
         if alive:
-            yield self.docker_client.stop(container_id)
-        yield self.docker_client.remove_container(container_id)
+            yield self._with_retries(RETRIES, self.docker_client.stop, container_id)
+        yield self._with_retries(RETRIES, self.docker_client.remove_container, container_id)
 
     @gen.coroutine
     def list_notebook_servers(self, container_config, all=True):
         '''List containers that were launched from a specific image.'''
 
-        existing = yield self.docker_client.containers(all=all, trunc=False)
+        existing = yield self._with_retries(RETRIES,
+                                            self.docker_client.containers,
+                                            all=all,
+                                            trunc=False)
 
         untagged_image = container_config.image.split(':')[0]
         def has_matching_image(container):
@@ -130,3 +142,21 @@ class DockerSpawner():
 
         matching = [container for container in existing if has_matching_image(container)]
         raise gen.Return(matching)
+
+    @gen.coroutine
+    def _with_retries(self, max_tries, fn, *args, **kwargs):
+        '''Attempt a Docker API call.
+
+        If an error occurs, retry up to "max_tries" times before letting the exception propagate
+        up the stack.'''
+
+        try:
+            result = yield fn(*args, **kwargs)
+            raise gen.Return(result)
+        except docker.errors.APIError as e:
+            app_log.error("Encountered a Docker error (%i retries remain): %s", max_tries, e)
+            if max_tries > 0:
+                result = yield self._with_retries(max_tries - 1, fn, *args, **kwargs)
+                raise gen.Return(result)
+            else:
+                raise e
