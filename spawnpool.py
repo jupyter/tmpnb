@@ -10,6 +10,7 @@ from tornado.httputil import url_concat
 import errno
 import string
 import socket
+import pytz
 import random
 import json
 import dockworker
@@ -37,6 +38,7 @@ class EmptyPoolError(Exception):
 
     pass
 
+
 class SpawnPool():
     '''Manage a pool of precreated Docker containers.'''
 
@@ -45,29 +47,19 @@ class SpawnPool():
                  proxy_token,
                  spawner,
                  container_config,
-                 capacity):
+                 capacity,
+                 max_age):
         '''Create a new, empty spawn pool, with nothing preallocated.'''
 
         self.spawner = spawner
         self.container_config = container_config
         self.capacity = capacity
+        self.max_age = max_age
 
         self.proxy_endpoint = proxy_endpoint
         self.proxy_token = proxy_token
 
         self.available = deque()
-        self.releasing = set()
-
-    @gen.coroutine
-    def prelaunch(self):
-        '''Pre-allocate a set number of containers, ready to serve.'''
-
-        existing = yield self._clean_orphaned_containers()
-
-        count = max(self.capacity - existing, 0)
-        app_log.info("Preparing %i new containers.", count)
-        yield [self._launch_container() for i in xrange(0, count)]
-        app_log.info("%i containers successfully prepared.", count)
 
     def acquire(self):
         '''Acquire a preallocated container and returns its user path.
@@ -84,7 +76,10 @@ class SpawnPool():
         '''Launch a container with a fixed path by taking the place of an existing container from
         the pool.'''
 
-        yield self.release(self.acquire(), False)
+        to_release = self.acquire()
+        app_log.debug("Discarding container [%s] to create an ad-hoc replacement.")
+        yield self.release(to_release, False)
+
         launched = yield self._launch_container(path)
         raise gen.Return(launched)
 
@@ -95,30 +90,16 @@ class SpawnPool():
         Destroy the container in an orderly fashion. If requested and capacity is remaining, create
         a new one to take its place.'''
 
-        if container.id in self.releasing:
-            # This can happen if culling runs again before the previous run finishes deleting
-            # everything.
-            app_log.debug("Container [%s] is already being released.", container)
-            return
-
-        self.releasing.add(container.id)
-
         try:
-            app_log.info("Shutting down used container [%s].", container)
-            yield self.spawner.shutdown_notebook_server(container.id)
+            app_log.info("Shutting down and de-proxying used container [%s].", container)
+            yield [
+                self.spawner.shutdown_notebook_server(container.id),
+                self._proxy_remove(container.path)
+            ]
             app_log.debug("Inactive container [%s] has been shut down.", container)
         except Exception as e:
             app_log.error("Unable to cull container [%s]: %s", container, e)
-
-        app_log.debug("Removing container [%s] from the proxy.", container)
-        http_client = AsyncHTTPClient()
-        proxy_url = "{}/api/routes/{}".format(self.proxy_endpoint, container.path.lstrip('/'))
-        headers = {"Authorization": "token {}".format(self.proxy_token)}
-        req = HTTPRequest(proxy_url, method="DELETE", headers=headers)
-        try:
-            yield http_client.fetch(req)
-        except HTTPError as e:
-            app_log.error("Failed to delete route [%s]: %s", proxy_url, e)
+            return
 
         if replace_if_room:
             running = yield self.spawner.list_notebook_servers(self.container_config,
@@ -131,57 +112,77 @@ class SpawnPool():
                              " already running, and the capacity is [%i].",
                              len(running), self.capacity)
 
-        self.releasing.remove(container.id)
-
     @gen.coroutine
-    def cull(self, max_age=None):
-        '''Destroy and replace any used containers that have been idle.
+    def heartbeat(self):
+        '''Examine the pool for any missing, stopped, or idle containers, and replace them.
 
         A container is considered "used" if it isn't still present in the pool. If no max_age is
         specified, an hour is used.'''
 
-        if max_age is None:
-            max_age = timedelta(minutes=60)
-        http_client = AsyncHTTPClient()
-        app_log.debug("The culling has begun.")
+        app_log.debug("Heartbeat begun. Measuring current state.")
 
-        dt = datetime.utcnow() - max_age
-        cutoff = dt.isoformat() + 'Z'
-        url = url_concat("{}/api/routes".format(self.proxy_endpoint), {'inactive_since': cutoff})
-        headers = {"Authorization": "token {}".format(self.proxy_token)}
+        diagnosis = Diagnosis(self.max_age,
+                              self.spawner,
+                              self.container_config,
+                              self.proxy_endpoint,
+                              self.proxy_token)
+        yield diagnosis.observe()
 
-        app_log.debug("Fetching sessions inactive since [%s].", cutoff)
-        req = HTTPRequest(url, method="GET", headers=headers)
+        tasks = []
 
-        reap = []
+        for id in diagnosis.stopped_container_ids:
+            app_log.debug("Removing stopped container [%s].", id)
+            tasks.append(self.spawner.shutdown_notebook_server(id, alive=False))
 
-        try:
-            resp = yield http_client.fetch(req)
-            results = json.loads(resp.body.decode('utf8', 'replace'))
+        for path, id in diagnosis.zombie_routes:
+            app_log.debug("Removing zombie route [%s].", path)
+            tasks.append(self._proxy_remove(path))
 
-            if not results:
-                app_log.debug("No stale routes to cull.")
+        app_log.debug("Pooled routes: %s", self._pooled_ids())
+        unpooled_stale_routes = [(path, id) for path, id in diagnosis.stale_routes
+                                    if id not in self._pooled_ids()]
+        app_log.debug("Unpooled, stale routes: %s", unpooled_stale_routes)
+        for path, id in unpooled_stale_routes:
+            app_log.debug("Replacing stale route [%s] and container [%s].", path, id)
+            container = PooledContainer(path=path, id=id)
+            tasks.append(self.release(container, replace_if_room=True))
 
-            pooled_ids = self._pooled_ids()
+        # Normalize the container count to its initial capacity by scheduling deletions if we're
+        # over or scheduling launches if we're under.
+        current = len(diagnosis.living_container_ids)
+        under = xrange(current, self.capacity)
+        over = xrange(self.capacity, current)
 
-            for base_path, route in results.items():
-                container_id = route.get('container_id', None)
-                if container_id:
-                    # Don't cull containers that are waiting in the pool and haven't been used
-                    # yet.
-                    if container_id in pooled_ids:
-                        app_log.debug("Not culling unused container [%s].", container_id)
-                    else:
-                        reap.append(PooledContainer(id=container_id, path=base_path))
-        except HTTPError as e:
-            app_log.error("Failed to list stale routes: %s", e)
+        if under:
+            app_log.debug("Launching [%i] new containers to populate the pool.", len(under))
+        for i in under:
+            tasks.append(self._launch_container())
 
-        if reap:
-            yield [self.release(each) for each in reap]
-        else:
-            app_log.debug("No stale containers to reap.")
+        if over:
+            app_log.debug("Removing [%i] containers to diminish the pool.", len(over))
+        for i in over:
+            try:
+                pooled = self.acquire()
+                app_log.debug("Releasing container [%s] to shrink the pool.", pooled.id)
+                tasks.append(self.release(pooled, False))
+            except EmptyPoolError:
+                app_log.warning("Unable to shrink: pool is diminished, all containers in use.")
+                break
 
-        app_log.debug("The culling has reaped %i souls (containers).", len(reap))
+        yield tasks
+
+        # Summarize any actions taken to the log.
+        def summarize(message, list):
+            if list:
+                app_log.info(message, len(list))
+        summarize("Removed [%i] stopped containers.", diagnosis.stopped_container_ids)
+        summarize("Removed [%i] zombie routes.", diagnosis.zombie_routes)
+        summarize("Replaced [%i] stale containers.", unpooled_stale_routes)
+        summarize("Launched [%i] new containers.", under)
+        summarize("Removed [%i] excess containers from the pool.", over)
+
+        app_log.debug("Heartbeat complete. The pool now includes [%i] containers.",
+                      len(self.available))
 
     @gen.coroutine
     def _launch_container(self, path=None):
@@ -193,7 +194,7 @@ class SpawnPool():
 
         app_log.debug("Launching new notebook server for user [%s].", path)
         create_result = yield self.spawner.create_notebook_server(base_path=path,
-                                                                 container_config=self.container_config)
+                                                                  container_config=self.container_config)
         container_id, host_ip, host_port = create_result
         app_log.debug("Created notebook server for [%s] at [%s:%s]", path, host_ip, host_port)
 
@@ -271,38 +272,103 @@ class SpawnPool():
         app_log.info("Server [%s] at address [%s:%s] has booted! Have at it.",
                      path, ip, port)
 
+    def _pooled_ids(self):
+        '''Build a set of container IDs that are currently waiting in the pool.'''
+
+        return set(container.id for container in self.available)
+
     @gen.coroutine
-    def _clean_orphaned_containers(self):
-        '''Clean up any pre-existing, stale containers.
+    def _proxy_remove(self, path):
+        '''Remove a path from the proxy.'''
 
-        These are containers that exist in Docker, but have no corresponding proxy entry. The
-        regular culling process will handle removing active containers as they expire and
-        re-launching new ones up to the pool capacity.
+        url = "{}/api/routes/{}".format(self.proxy_endpoint, path.lstrip('/'))
+        headers = {"Authorization": "token {}".format(self.proxy_token)}
+        req = HTTPRequest(url, method="DELETE", headers=headers)
+        http_client = AsyncHTTPClient()
 
-        Returns the number of existing containers that were *not* cleaned out, so that the
-        prelaunch process can take this into account and not overload the server.'''
+        try:
+            yield http_client.fetch(req)
+        except HTTPError as e:
+            app_log.error("Failed to delete route [%s]: %s", path, e)
 
-        app_log.info("Cleaning out any orphaned containers.")
 
-        def is_alive(container):
-            return container['Status'].startswith('Up')
+class Diagnosis():
+    '''Collect and organize information to self-heal a SpawnPool.
 
-        docker_results = yield self.spawner.list_notebook_servers(self.container_config,
-                                                                 all=True)
+    Measure the current state of Docker and the proxy routes and scan for anomalies so the pool can
+    correct them. This includes zombie containers, containers that are running but not routed in the
+    proxy, proxy routes that exist without a corresponding container, or other strange conditions.'''
 
-        # Remove any stopped containers.
-        stopped_ids = [container['Id'] for container in docker_results if not is_alive(container)]
-        app_log.debug("Containers that are stopped: [%i]", len(stopped_ids))
-        if stopped_ids:
-            yield [self.spawner.shutdown_notebook_server(id, alive=False) for id in stopped_ids]
-            app_log.info("Removed [%i] stopped containers.", len(stopped_ids))
+    def __init__(self, cull_time, spawner, container_config, proxy_endpoint, proxy_token):
+        self.spawner = spawner
+        self.container_config = container_config
+        self.proxy_endpoint = proxy_endpoint
+        self.proxy_token = proxy_token
+        self.cull_time = cull_time
 
-        # Identify the living containers.
-        docker_ids = [container['Id'] for container in docker_results if is_alive(container)]
-        app_log.debug("Containers that already exist in Docker: [%i]", len(docker_ids))
+    @gen.coroutine
+    def observe(self):
+        '''Collect Ground Truth of what's actually running from Docker and the proxy.'''
 
-        # Identity the containers that have live entries in the proxy.
-        proxy_ids = set()
+        results = yield {
+            "docker": self.spawner.list_notebook_servers(self.container_config, all=True),
+            "proxy": self._proxy_routes()
+        }
+
+        self.container_ids = set()
+        self.living_container_ids = []
+        self.stopped_container_ids = []
+        self.zombie_container_ids = []
+
+        self.routes = set()
+        self.live_routes = []
+        self.stale_routes = []
+        self.zombie_routes = []
+
+        # Sort Docker results into living and dead containers.
+        for container in results["docker"]:
+            id = container['Id']
+            self.container_ids.add(id)
+            if container['Status'].startswith('Up'):
+                self.living_container_ids.append(id)
+            else:
+                self.stopped_container_ids.append(id)
+
+        app_log.debug("Living containers: [%s]", self.living_container_ids)
+        app_log.debug("Stopped containers: [%s]", self.stopped_container_ids)
+
+        cutoff = datetime.utcnow() - self.cull_time
+
+        # Sort proxy routes into living, stale, and zombie routes.
+        living_set = set(self.living_container_ids)
+        for path, route in results["proxy"].items():
+            last_activity_s = route.get('last_activity', None)
+            container_id = route.get('container_id', None)
+            if container_id:
+                result = (path, container_id)
+                if container_id in living_set:
+                    try:
+                        last_activity = datetime.strptime(last_activity_s, '%Y-%m-%dT%H:%M:%S.%fZ')
+
+                        self.routes.add(result)
+                        if last_activity >= cutoff:
+                            self.live_routes.append(result)
+                        else:
+                            self.stale_routes.append(result)
+                    except ValueError as e:
+                        app_log.warning("Ignoring a proxy route with an unparsable activity date: %s", e)
+                else:
+                    # The container doesn't correspond to a living container.
+                    self.zombie_routes.append(result)
+
+        app_log.debug("Live routes: [%s]", self.live_routes)
+        app_log.debug("Stale routes: [%s]", self.stale_routes)
+        app_log.debug("Zombie routes: [%s]", self.zombie_routes)
+
+    @gen.coroutine
+    def _proxy_routes(self):
+        routes = []
+
         url = "{}/api/routes".format(self.proxy_endpoint)
         headers = {"Authorization": "token {}".format(self.proxy_token)}
         req = HTTPRequest(url, method="GET", headers=headers)
@@ -310,27 +376,7 @@ class SpawnPool():
         try:
             resp = yield http_client.fetch(req)
             results = json.loads(resp.body.decode('utf8', 'replace'))
-
-            for base_path, route in results.items():
-                container_id = route.get('container_id', None)
-                if container_id:
-                    proxy_ids.add(container_id)
+            raise gen.Return(results)
         except HTTPError as e:
             app_log.error("Unable to list existing proxy entries: %s", e)
-            return
-        app_log.debug("Containers that are routed in the proxy: [%i]", len(proxy_ids))
-
-        # Shut down any containers that are alive, but don't have proxy entries.
-        stale_ids = [id for id in docker_ids if id not in proxy_ids]
-        app_log.debug("Deleting [%i] stale containers from Docker.", len(stale_ids))
-        yield [self.spawner.shutdown_notebook_server(id) for id in stale_ids]
-
-        # Return the number of containers that are still running.
-        left = len(docker_ids) - len(stale_ids)
-        app_log.debug("There are [%i] active containers already running on this server.", left)
-        raise gen.Return(left)
-
-    def _pooled_ids(self):
-        '''Build a set of container IDs that are currently waiting in the pool.'''
-
-        return set(container.id for container in self.available)
+            raise gen.Return({})

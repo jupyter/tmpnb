@@ -121,6 +121,8 @@ def main():
     proxy_endpoint = os.environ.get('CONFIGPROXY_ENDPOINT', "http://127.0.0.1:8001")
     docker_host = os.environ.get('DOCKER_HOST', 'unix://var/run/docker.sock')
 
+    max_age = datetime.timedelta(seconds=opts.cull_timeout)
+
     container_config = dockworker.ContainerConfig(
         image=opts.image,
         ipython_executable=opts.ipython_executable,
@@ -139,7 +141,8 @@ def main():
                                proxy_token=proxy_token,
                                spawner=spawner,
                                container_config=container_config,
-                               capacity=opts.pool_size)
+                               capacity=opts.pool_size,
+                               max_age=max_age)
 
     ioloop = tornado.ioloop.IOLoop().instance()
 
@@ -158,32 +161,20 @@ def main():
         redirect_uri=opts.redirect_uri.lstrip('/'),
     )
 
-    # Synchronously pre-launch a set number of containers, ready to serve.
-    @gen.coroutine
-    def setup_pool():
-        if opts.cull_timeout:
-            yield pool.cull(datetime.timedelta(seconds=opts.cull_timeout))
-        yield pool.prelaunch()
+    # Synchronously cull any existing, inactive containers, and pre-launch a set number of
+    # containers, ready to serve.
+    ioloop.run_sync(pool.heartbeat)
 
-    ioloop.run_sync(setup_pool)
-
-    # check for idle containers and cull them
-    if opts.cull_timeout:
-        cull_ms = opts.cull_period * 1e3
-
-        app_log.info("Culling containers unused for %i seconds every %i seconds.",
-                     opts.cull_timeout,
-                     opts.cull_period)
-        culler = tornado.ioloop.PeriodicCallback(
-            lambda : pool.cull(datetime.timedelta(seconds=opts.cull_timeout)),
-            cull_ms
-        )
-        culler.start()
-    else:
-        app_log.info("Not culling idle containers")
+    # Periodically execute a heartbeat function to cull used containers and regenerated failed
+    # ones, self-healing the cluster.
+    cull_ms = opts.cull_period * 1e3
+    app_log.info("Culling containers unused for %i seconds every %i seconds.",
+                 opts.cull_timeout,
+                 opts.cull_period)
+    culler = tornado.ioloop.PeriodicCallback(pool.heartbeat, cull_ms)
+    culler.start()
 
     app_log.info("Listening on {}".format(opts.port))
-
     application = tornado.web.Application(handlers, **settings)
     application.listen(opts.port)
     ioloop.start()
