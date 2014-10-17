@@ -14,6 +14,10 @@
         It looks like we're full up. Every single container is in use right now! Try again later
         and maybe you'll have better luck. Sorry for the inconvenience!
       </p>
+      <p>
+        If you hang around here for a while, you'll automatically retry in {{ cull_period }}
+        seconds.
+      </p>
     </div>
   </div>
 
@@ -21,7 +25,7 @@
     // Try again in a minute.
     setTimeout(function () {
       window.location.reload();
-    }, 10000) // 60000
+  }, {{ cull_period * 1e3 }})
   </script>
 </body>
 </html>

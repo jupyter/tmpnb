@@ -53,11 +53,15 @@ class SpawnHandler(RequestHandler):
             self.redirect(url, permanent=False)
         except spawnpool.EmptyPoolError:
             app_log.warning("The container pool is empty!")
-            self.render("full.html")
+            self.render("full.html", cull_period=self.cull_period)
 
     @property
     def pool(self):
         return self.settings['pool']
+
+    @property
+    def cull_period(self):
+        return self.settings['cull_period']
 
     @property
     def redirect_uri(self):
@@ -144,6 +148,7 @@ def main():
         cookie_secret=uuid.uuid4(),
         xsrf_cookies=True,
         debug=True,
+        cull_period=opts.cull_period,
         spawner=spawner,
         pool=pool,
         autoescape=None,
