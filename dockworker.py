@@ -91,6 +91,7 @@ class DockerSpawner():
         resp = yield self._with_retries(RETRIES,
                                         self.docker_client.create_container,
                                         image=container_config.image,
+                                        command=command,
                                         mem_limit=container_config.mem_limit,
                                         cpu_shares=container_config.cpu_shares)
 
