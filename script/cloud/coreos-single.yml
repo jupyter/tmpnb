@@ -11,8 +11,8 @@
 
 coreos:
   update:
-    # If etcd is running, use an etcd-lock. Otherwise reboot
-    reboot-strategy: best-effort
+    # No cluster, will have to do reboots manually
+    reboot-strategy: off
 
   units:
     - name: systemd-sysctl.service
