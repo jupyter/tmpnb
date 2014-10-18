@@ -77,10 +77,10 @@ class SpawnPool():
         the pool.'''
 
         to_release = self.acquire()
-        app_log.debug("Discarding container [%s] to create an ad-hoc replacement.")
+        app_log.debug("Discarding container [%s] to create an ad-hoc replacement.", to_release)
         yield self.release(to_release, False)
 
-        launched = yield self._launch_container(path)
+        launched = yield self._launch_container(path=path, enpool=False)
         raise gen.Return(launched)
 
     @gen.coroutine
@@ -183,7 +183,7 @@ class SpawnPool():
                       len(self.available))
 
     @gen.coroutine
-    def _launch_container(self, path=None):
+    def _launch_container(self, path=None, enpool=True):
         '''Launch a new notebook server in a fresh container, register it with the proxy, and
         add it to the pool.'''
 
@@ -221,8 +221,9 @@ class SpawnPool():
             app_log.error("Failed to create proxy route to [%s]: %s", path, e)
 
         container = PooledContainer(id=container_id, path=path)
-        app_log.info("Adding container [%s] to the pool.", container)
-        self.available.append(container)
+        if enpool:
+            app_log.info("Adding container [%s] to the pool.", container)
+            self.available.append(container)
 
         raise gen.Return(container)
 
