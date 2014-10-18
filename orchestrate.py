@@ -113,8 +113,8 @@ def main():
 
     handlers = [
         (r"/", LoadingHandler),
-        (r"/spawn/?(/user-\w+/.+)?", SpawnHandler),
-        (r"/(user-\w+)/.*", LoadingHandler),
+        (r"/spawn/?(/user-\w+(?:/.*)?)?", SpawnHandler),
+        (r"/(user-\w+)(?:/.*)?", LoadingHandler),
     ]
 
     proxy_token = os.environ['CONFIGPROXY_AUTH_TOKEN']
