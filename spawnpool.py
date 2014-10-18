@@ -334,9 +334,6 @@ class Diagnosis():
             else:
                 self.stopped_container_ids.append(id)
 
-        app_log.debug("Living containers: [%s]", self.living_container_ids)
-        app_log.debug("Stopped containers: [%s]", self.stopped_container_ids)
-
         cutoff = datetime.utcnow() - self.cull_time
 
         # Sort proxy routes into living, stale, and zombie routes.
@@ -360,10 +357,6 @@ class Diagnosis():
                 else:
                     # The container doesn't correspond to a living container.
                     self.zombie_routes.append(result)
-
-        app_log.debug("Live routes: [%s]", self.live_routes)
-        app_log.debug("Stale routes: [%s]", self.stale_routes)
-        app_log.debug("Zombie routes: [%s]", self.zombie_routes)
 
     @gen.coroutine
     def _proxy_routes(self):
