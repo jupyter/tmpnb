@@ -88,8 +88,7 @@ class DockerSpawner():
             ipython_command
         ]
 
-        resp = yield self._with_retries(RETRIES,
-                                        self.docker_client.create_container,
+        resp = yield self._with_retries(self.docker_client.create_container,
                                         image=container_config.image,
                                         command=command,
                                         mem_limit=container_config.mem_limit,
@@ -105,13 +104,11 @@ class DockerSpawner():
         port_bindings = {
             container_config.container_port: (container_config.container_ip,)
         }
-        yield self._with_retries(RETRIES,
-                                 self.docker_client.start,
+        yield self._with_retries(self.docker_client.start,
                                  container_id,
                                  port_bindings=port_bindings)
 
-        container_network = yield self._with_retries(RETRIES,
-                                                     self.docker_client.port,
+        container_network = yield self._with_retries(self.docker_client.port,
                                                      container_id,
                                                      container_config.container_port)
 
@@ -125,15 +122,14 @@ class DockerSpawner():
         '''Gracefully stop a running container.'''
 
         if alive:
-            yield self._with_retries(RETRIES, self.docker_client.stop, container_id)
-        yield self._with_retries(RETRIES, self.docker_client.remove_container, container_id)
+            yield self._with_retries(self.docker_client.stop, container_id)
+        yield self._with_retries(self.docker_client.remove_container, container_id)
 
     @gen.coroutine
     def list_notebook_servers(self, container_config, all=True):
         '''List containers that were launched from a specific image.'''
 
-        existing = yield self._with_retries(RETRIES,
-                                            self.docker_client.containers,
+        existing = yield self._with_retries(self.docker_client.containers,
                                             all=all,
                                             trunc=False)
 
@@ -145,19 +141,23 @@ class DockerSpawner():
         raise gen.Return(matching)
 
     @gen.coroutine
-    def _with_retries(self, max_tries, fn, *args, **kwargs):
+    def _with_retries(self, fn, *args, **kwargs):
         '''Attempt a Docker API call.
 
         If an error occurs, retry up to "max_tries" times before letting the exception propagate
         up the stack.'''
 
+        max_tries = kwargs.get('max_tries', RETRIES)
         try:
+            if 'max_tries' in kwargs:
+                del kwargs['max_tries']
             result = yield fn(*args, **kwargs)
             raise gen.Return(result)
         except docker.errors.APIError as e:
             app_log.error("Encountered a Docker error (%i retries remain): %s", max_tries, e)
             if max_tries > 0:
-                result = yield self._with_retries(max_tries - 1, fn, *args, **kwargs)
+                kwargs['max_tries'] = max_tries - 1
+                result = yield self._with_retries(fn, *args, **kwargs)
                 raise gen.Return(result)
             else:
                 raise e
