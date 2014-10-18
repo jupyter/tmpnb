@@ -91,14 +91,14 @@ class SpawnPool():
         a new one to take its place.'''
 
         try:
-            app_log.info("Shutting down and de-proxying used container [%s].", container)
+            app_log.info("Releasing container [%s].", container)
             yield [
                 self.spawner.shutdown_notebook_server(container.id),
                 self._proxy_remove(container.path)
             ]
-            app_log.debug("Inactive container [%s] has been shut down.", container)
+            app_log.debug("Container [%s] has been released.", container)
         except Exception as e:
-            app_log.error("Unable to cull container [%s]: %s", container, e)
+            app_log.error("Unable to release container [%s]: %s", container, e)
             return
 
         if replace_if_room:
@@ -138,10 +138,8 @@ class SpawnPool():
             app_log.debug("Removing zombie route [%s].", path)
             tasks.append(self._proxy_remove(path))
 
-        app_log.debug("Pooled routes: %s", self._pooled_ids())
         unpooled_stale_routes = [(path, id) for path, id in diagnosis.stale_routes
                                     if id not in self._pooled_ids()]
-        app_log.debug("Unpooled, stale routes: %s", unpooled_stale_routes)
         for path, id in unpooled_stale_routes:
             app_log.debug("Replacing stale route [%s] and container [%s].", path, id)
             container = PooledContainer(path=path, id=id)
@@ -192,11 +190,11 @@ class SpawnPool():
         if path is None:
             path = user_prefix()
 
-        app_log.debug("Launching new notebook server for user [%s].", path)
+        app_log.debug("Launching new notebook server at path [%s].", path)
         create_result = yield self.spawner.create_notebook_server(base_path=path,
                                                                   container_config=self.container_config)
         container_id, host_ip, host_port = create_result
-        app_log.debug("Created notebook server for [%s] at [%s:%s]", path, host_ip, host_port)
+        app_log.debug("Created notebook server for path [%s] at [%s:%s]", path, host_ip, host_port)
 
         # Wait for the server to launch within the container before adding it to the pool or
         # serving it to a user.
@@ -211,14 +209,14 @@ class SpawnPool():
             "container_id": container_id,
         })
 
-        app_log.debug("Proxying notebook [%s] to port [%s].", path, host_port)
+        app_log.debug("Proxying path [%s] to port [%s].", path, host_port)
         req = HTTPRequest(proxy_endpoint,
                           method="POST",
                           headers=headers,
                           body=body)
         try:
             yield http_client.fetch(req)
-            app_log.info("Proxied notebook [%s] to port [%s].", path, host_port)
+            app_log.info("Proxied path [%s] to port [%s].", path, host_port)
         except HTTPError as e:
             app_log.error("Failed to create proxy route to [%s]: %s", path, e)
 
