@@ -1,17 +1,20 @@
-import datetime
-import json
-
 from concurrent.futures import ThreadPoolExecutor
+from collections import namedtuple
 
 import docker
 
 from tornado.log import app_log
 
 from tornado import gen, web
-from tornado.httputil import url_concat
-from tornado.httpclient import HTTPRequest, HTTPError, AsyncHTTPClient
 
-AsyncHTTPClient.configure("tornado.curl_httpclient.CurlAsyncHTTPClient")
+
+ContainerConfig = namedtuple('ContainerConfig', [
+    'image', 'ipython_executable', 'mem_limit', 'cpu_shares', 'container_ip', 'container_port'
+])
+
+# Number of times to retry API calls before giving up.
+RETRIES = 5
+
 
 class AsyncDockerClient():
     '''Completely ridiculous wrapper for a Docker client that returns futures
@@ -38,37 +41,30 @@ class AsyncDockerClient():
             return self.executor.submit(fn, *args, **kwargs)
 
         return method
-        
+
 
 class DockerSpawner():
-    def __init__(self, docker_host='unix://var/run/docker.sock',
-                       version='1.12',
-                       timeout=20,
-                       max_workers=64):
-                       
+    def __init__(self,
+                 docker_host='unix://var/run/docker.sock',
+                 version='1.12',
+                 timeout=20,
+                 max_workers=64):
+
         blocking_docker_client = docker.Client(base_url=docker_host,
                                                version=version,
                                                timeout=timeout)
 
         executor = ThreadPoolExecutor(max_workers=max_workers)
-        
+
         async_docker_client = AsyncDockerClient(blocking_docker_client,
                                                 executor)
         self.docker_client = async_docker_client
 
     @gen.coroutine
-    def create_notebook_server(self, base_path,
-                               image="jupyter/demo",
-                               ipython_executable="ipython3",
-                               mem_limit="512m",
-                               cpu_shares="1",
-                               container_ip="127.0.0.1",
-                               container_port=8888):
-        '''
-        Creates a notebook_server running off of `base_path`.
+    def create_notebook_server(self, base_path, container_config):
+        '''Creates a notebook_server running off of `base_path`.
 
-        returns the container_id, ip, port in a Future
-        '''
+        Returns the container_id, ip, port in a Future.'''
 
         templates = ['/srv/ga',
                      '/srv/ipython/IPython/html',
@@ -78,13 +74,13 @@ class DockerSpawner():
 
         ipython_args = [
                 "notebook", "--no-browser",
-                "--port {}".format(container_port),
+                "--port {}".format(container_config.container_port),
                 "--ip=0.0.0.0",
                 "--NotebookApp.base_url=/{}".format(base_path),
                 "--NotebookApp.tornado_settings=\"{}\"".format(tornado_settings)
         ]
 
-        ipython_command = ipython_executable + " " + " ".join(ipython_args)
+        ipython_command = container_config.ipython_executable + " " + " ".join(ipython_args)
 
         command = [
             "/bin/sh",
@@ -92,10 +88,11 @@ class DockerSpawner():
             ipython_command
         ]
 
-        resp = yield self.docker_client.create_container(image=image,
-                                                    command=command,
-                                                    mem_limit=mem_limit,
-                                                    cpu_shares=cpu_shares)
+        resp = yield self._with_retries(self.docker_client.create_container,
+                                        image=container_config.image,
+                                        command=command,
+                                        mem_limit=container_config.mem_limit,
+                                        cpu_shares=container_config.cpu_shares)
 
         docker_warnings = resp['Warnings']
         if docker_warnings is not None:
@@ -104,61 +101,63 @@ class DockerSpawner():
         container_id = resp['Id']
         app_log.info("Created container {}".format(container_id))
 
-        yield self.docker_client.start(container_id,
-                                       port_bindings={container_port: (container_ip,)})
+        port_bindings = {
+            container_config.container_port: (container_config.container_ip,)
+        }
+        yield self._with_retries(self.docker_client.start,
+                                 container_id,
+                                 port_bindings=port_bindings)
 
-        container_network = yield self.docker_client.port(container_id,
-                                                          container_port)
+        container_network = yield self._with_retries(self.docker_client.port,
+                                                     container_id,
+                                                     container_config.container_port)
 
         host_port = container_network[0]['HostPort']
         host_ip = container_network[0]['HostIp']
 
         raise gen.Return((container_id, host_ip, int(host_port)))
 
-@gen.coroutine
-def cull_idle(docker_client, proxy_endpoint, proxy_token, delta=None):
-    if delta is None:
-        delta = datetime.timedelta(minutes=60)
-    http_client = AsyncHTTPClient()
+    @gen.coroutine
+    def shutdown_notebook_server(self, container_id, alive=True):
+        '''Gracefully stop a running container.'''
 
-    dt = datetime.datetime.utcnow() - delta
-    timestamp = dt.isoformat() + 'Z'
+        if alive:
+            yield self._with_retries(self.docker_client.stop, container_id)
+        yield self._with_retries(self.docker_client.remove_container, container_id)
 
-    routes_url = proxy_endpoint + "/api/routes"
+    @gen.coroutine
+    def list_notebook_servers(self, container_config, all=True):
+        '''List containers that were launched from a specific image.'''
 
-    url = url_concat(routes_url,
-                     {'inactive_since': timestamp})
+        existing = yield self._with_retries(self.docker_client.containers,
+                                            all=all,
+                                            trunc=False)
 
-    headers = {"Authorization": "token {}".format(proxy_token)}
+        untagged_image = container_config.image.split(':')[0]
+        def has_matching_image(container):
+            return container['Image'].split(':')[0] == untagged_image
 
-    app_log.debug("Fetching %s", url)
-    req = HTTPRequest(url,
-                      method="GET",
-                      headers=headers)
+        matching = [container for container in existing if has_matching_image(container)]
+        raise gen.Return(matching)
 
-    reply = yield http_client.fetch(req)
-    data = json.loads(reply.body.decode('utf8', 'replace'))
+    @gen.coroutine
+    def _with_retries(self, fn, *args, **kwargs):
+        '''Attempt a Docker API call.
 
-    if not data:
-        app_log.debug("No stale routes to cull")
+        If an error occurs, retry up to "max_tries" times before letting the exception propagate
+        up the stack.'''
 
-    for base_path, route in data.items():
-        container_id = route.get('container_id', None)
-        if container_id:
-            app_log.info("shutting down container %s at %s", container_id, base_path)
-            try:
-                yield docker_client.stop(container_id)
-                yield docker_client.remove_container(container_id)
-            except Exception as e:
-                app_log.error("Unable to cull {}: {}".format(container_id, e))
-        else:
-            app_log.error("No container found for %s", base_path)
-
-        app_log.info("removing %s from proxy", base_path)
-        req = HTTPRequest(routes_url + base_path,
-                          method="DELETE",
-                          headers=headers)
+        max_tries = kwargs.get('max_tries', RETRIES)
         try:
-            reply = yield http_client.fetch(req)
-        except HTTPError as e:
-            app_log.error("Failed to delete route %s: %s", base_path, e)
+            if 'max_tries' in kwargs:
+                del kwargs['max_tries']
+            result = yield fn(*args, **kwargs)
+            raise gen.Return(result)
+        except docker.errors.APIError as e:
+            app_log.error("Encountered a Docker error (%i retries remain): %s", max_tries, e)
+            if max_tries > 0:
+                kwargs['max_tries'] = max_tries - 1
+                result = yield self._with_retries(fn, *args, **kwargs)
+                raise gen.Return(result)
+            else:
+                raise e
