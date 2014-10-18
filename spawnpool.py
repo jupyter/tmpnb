@@ -77,7 +77,7 @@ class SpawnPool():
         the pool.'''
 
         to_release = self.acquire()
-        app_log.debug("Discarding container [%s] to create an ad-hoc replacement.")
+        app_log.debug("Discarding container [%s] to create an ad-hoc replacement.", to_release)
         yield self.release(to_release, False)
 
         launched = yield self._launch_container(path=path, enpool=False)
