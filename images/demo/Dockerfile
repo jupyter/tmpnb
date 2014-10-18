@@ -13,8 +13,9 @@ RUN chmod a+rwX /srv/ipython/examples
 # Dependencies for the example notebooks
 RUN apt-get build-dep -y mpi4py && pip2 install scikit-image vincent dill networkx mpi4py && pip3 install scikit-image vincent dill networkx mpi4py
 
-# Install R and the R kernel
-RUN apt-get install -y r-base r-base-dev r-cran-rcurl
+# Install R, the R kernel, and R magics
+RUN apt-get install -y r-base r-base-dev r-cran-rcurl libreadline-dev
+RUN pip install rpy2
 
 # Julia Installation
 RUN apt-get install software-properties-common python-software-properties -y && \
