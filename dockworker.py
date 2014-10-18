@@ -8,7 +8,7 @@ from tornado.log import app_log
 from tornado import gen, web
 
 
-ContainerConfig = namedtuple('ImageConfig', [
+ContainerConfig = namedtuple('ContainerConfig', [
     'image', 'ipython_executable', 'mem_limit', 'cpu_shares', 'container_ip', 'container_port'
 ])
 
