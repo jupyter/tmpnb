@@ -170,6 +170,17 @@ coreos:
         Type=oneshot
         ExecStart=/usr/bin/docker pull jupyter/demo
 
+    - name: port-80-redirect-iptables.service
+      command: start
+      content: |
+        [Unit]
+        Description=Redirect 80 to 8000
+        After=tmpnb.service
+
+        [Service]
+        Type=oneshot
+        ExecStart=/usr/sbin/iptables -t nat -A PREROUTING -p tcp --dport 80 -j REDIRECT --to 8000
+
     - name: tmpnb.service
       enable: true
       command: start
