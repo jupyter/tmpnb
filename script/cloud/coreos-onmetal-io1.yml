@@ -188,6 +188,7 @@ coreos:
         [Unit]
         Description=tmpnb
         After=configproxy.service
+        After=pull-user-image.service
         Requires=configproxy.service
         [Service]
         Restart=always
