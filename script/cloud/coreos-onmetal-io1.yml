@@ -164,6 +164,7 @@ coreos:
       content: |
         [Unit]
         Description=Pull the image for users on tmpnb
+        After=docker.service
         Before=tmpnb.service
 
         [Service]
