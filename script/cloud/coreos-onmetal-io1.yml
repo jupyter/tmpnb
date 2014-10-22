@@ -154,7 +154,7 @@ coreos:
         [Service]
         Restart=always
         ExecStartPre=/usr/bin/docker pull jupyter/configurable-http-proxy
-        ExecStart=/usr/bin/docker run --net=host --rm --name configproxy -e CONFIGPROXY_AUTH_TOKEN=HOKEYTOKEN jupyter/configurable-http-proxy --default-target http://127.0.0.1:9999
+        ExecStart=/usr/bin/docker run --net=host --name configproxy -e CONFIGPROXY_AUTH_TOKEN=HOKEYTOKEN jupyter/configurable-http-proxy --default-target http://127.0.0.1:9999
         ExecStop=/usr/bin/docker rm -f configproxy
         [Install]
         WantedBy=tmpnb.target
@@ -165,7 +165,6 @@ coreos:
         [Unit]
         Description=Pull the image for users on tmpnb
         After=docker.service
-        Before=tmpnb.service
 
         [Service]
         Type=oneshot
@@ -189,12 +188,12 @@ coreos:
         [Unit]
         Description=tmpnb
         After=configproxy.service
-        After=pull-user-image.service
         Requires=configproxy.service
         [Service]
         Restart=always
+        ExecStartPre=/usr/bin/docker pull jupyter/demo
         ExecStartPre=/usr/bin/docker pull jupyter/tmpnb
-        ExecStart=/usr/bin/docker run --rm --name tmpnb --net=host -e CONFIGPROXY_AUTH_TOKEN=HOKEYTOKEN -v /var/run/docker.sock:/docker.sock jupyter/tmpnb python orchestrate.py --cull-timeout=60 --docker-version=1.13 --pool-size=256
+        ExecStart=/usr/bin/docker run --name tmpnb --net=host -e CONFIGPROXY_AUTH_TOKEN=HOKEYTOKEN -v /var/run/docker.sock:/docker.sock jupyter/tmpnb python orchestrate.py --cull-timeout=600 --docker-version=1.13 --pool-size=128
         ExecStop=/usr/bin/docker rm -f tmpnb
         [Install]
         WantedBy=tmpnb.target
