@@ -46,7 +46,7 @@ git clone https://github.com/jupyter/tmpnb.git
 cd tmpnb
 
 # If modifying the Docker image in any way
-docker build -t jupyter/demo image
+docker build -t jupyter/demo images/demo
 
 pip install -r requirements.txt
 npm install jupyter/configurable-http-proxy
