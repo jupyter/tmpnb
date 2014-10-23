@@ -1,0 +1,84 @@
+#cloud-config
+
+#write_files:
+  #- path: /usr/share/ssh/sshd_config
+  #  permissions: 0644
+  #  content: |
+  #    UsePrivilegeSeparation sandbox
+  #    Subsystem sftp internal-sftp
+  #    PasswordAuthentication no
+
+
+coreos:
+  update:
+    # No cluster, will have to do reboots manually
+    reboot-strategy: off
+
+  units:
+    - name: systemd-sysctl.service
+      command: restart
+
+    - name: docker.service
+      command: start
+      content: |
+        [Unit]
+        Description=Docker Application Container Engine
+        Documentation=http://docs.docker.io
+        Requires=docker.socket
+        
+        [Service]
+        Environment="TMPDIR=/var/tmp/"
+        ExecStartPre=/bin/mount --make-rprivate /
+        LimitNOFILE=1048576
+        LimitNPROC=1048576
+        # Run docker but don't have docker automatically restart
+        # containers. This is a job for systemd and unit files.
+        # Turn off inter-container communication (--icc=false) so the containers
+        # can't communicate over etcd or with each other.
+        ExecStart=/usr/bin/docker -d -s=btrfs -r=false --icc=false -H fd://
+
+        [Install]
+        WantedBy=multi-user.target
+
+    - name: configproxy.service
+      enable: true
+      command: start
+      content: |
+        [Unit]
+        Description=ConfigProxy
+        After=docker.service
+        Requires=docker.service
+        [Service]
+        Restart=always
+        ExecStartPre=/usr/bin/docker pull jupyter/configurable-http-proxy
+        ExecStart=/usr/bin/docker run --net=host --rm --name configproxy -e CONFIGPROXY_AUTH_TOKEN=HOKEYTOKEN jupyter/configurable-http-proxy --default-target http://127.0.0.1:9999
+        ExecStop=/usr/bin/docker rm -f configproxy
+        [Install]
+        WantedBy=tmpnb.target
+
+    - name: pull-user-image.service
+      command: start
+      content: |
+        [Unit]
+        Description=Pull the image for users on tmpnb
+        Before=tmpnb.service
+
+        [Service]
+        Type=oneshot
+        ExecStart=/usr/bin/docker pull jupyter/demo
+
+    - name: tmpnb.service
+      enable: true
+      command: start
+      content: |
+        [Unit]
+        Description=tmpnb
+        After=configproxy.service
+        Requires=configproxy.service
+        [Service]
+        Restart=always
+        ExecStartPre=/usr/bin/docker pull jupyter/tmpnb
+        ExecStart=/usr/bin/docker run --rm --name tmpnb --net=host -e CONFIGPROXY_AUTH_TOKEN=HOKEYTOKEN -v /var/run/docker.sock:/docker.sock jupyter/tmpnb python orchestrate.py --cull-timeout=60 --docker-version=1.13
+        ExecStop=/usr/bin/docker rm -f tmpnb
+        [Install]
+        WantedBy=tmpnb.target

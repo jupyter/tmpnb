@@ -1,0 +1,199 @@
+#cloud-config
+
+write_files:
+  - path: /etc/sysctl.d/nmi_watchdog.conf
+    permissions: 0644
+    content: |
+      kernel.nmi_watchdog=0
+
+  - path: /root/bin/add_raid_uuid_to_fstab.sh
+    permissions: 0755
+    content: |
+      #!/bin/bash
+      UUID=`lsblk -o NAME,TYPE,UUID | grep raid0 | awk '{print $3}' | head -n1`
+      grep -q $UUID /etc/fstab && echo "Device already in fstab" && exit 0
+      echo "UUID=$UUID /var/lib/docker btrfs defaults 0 1" >> /etc/fstab
+      mkdir -p /var/lib/docker
+      mount /var/lib/docker
+      chown root:root /var/lib/docker
+      chmod 700 /var/lib/docker
+      mkdir -p /var/lib/docker/nbindexing
+      chmod 777 /var/lib/docker/nbindexing
+
+  - path: /root/bin/lsi_device_paths.sh
+    permissions: 0755
+    content: |
+      #!/bin/bash
+      lsblk -i -o KNAME,MODEL | grep NWD-BLP4-1600 | awk '{print $1}'
+
+  - path: /root/bin/lsi_settings.sh
+    permissions: 0755
+    content: |
+      #!/bin/bash
+      for blockdev in `/root/bin/lsi_device_paths.sh`; do
+          echo "Applying SSD settings to ${blockdev}"
+          echo noop | tee /sys/block/${blockdev}/queue/scheduler
+          echo 4096 | tee /sys/block/${blockdev}/queue/nr_requests
+          echo 1024 | tee /sys/block/${blockdev}/queue/max_sectors_kb
+          echo 1 | tee /sys/block/${blockdev}/queue/nomerges
+          echo 512 | tee /sys/block/${blockdev}/device/queue_depth
+      done
+
+  - path: /root/bin/lsi_format.sh
+    permissions: 0755
+    content: |
+      #!/bin/bash -e
+      
+      fail() {
+        echo $@
+        exit 1
+      }
+      
+      # Machine ID is "free" from systemd. This also is bonus protection
+      # against someone running this outside of systemd and breaking their machine.
+      MACHINE_ID=${1}
+      [ -z "$MACHINE_ID" ] && fail "error; machine ID should be passed in"
+      
+      GFILE="/etc/${MACHINE_ID}.raid-setup"
+      [ -e "${GFILE}" ] && echo "${GFILE} exists, raid already setup?" && exit 0
+      
+      [ -b "/dev/md0" ] && mdadm --stop /dev/md0
+      
+      BLOCKS=""
+      for blockdev in `/root/bin/lsi_device_paths.sh`; do
+        BLOCKS="${BLOCKS} /dev/${blockdev}"
+      done
+
+      yes | mdadm --create --verbose -f /dev/md0 --level=stripe --raid-devices=2 ${BLOCKS}
+      mkfs.btrfs /dev/md0
+      touch /etc/${MACHINE_ID}.raid-setup
+
+  #- path: /usr/share/ssh/sshd_config
+  #  permissions: 0644
+  #  content: |
+  #    UsePrivilegeSeparation sandbox
+  #    Subsystem sftp internal-sftp
+  #    PasswordAuthentication no
+
+
+coreos:
+  update:
+    # No cluster, will have to do reboots manually
+    reboot-strategy: off
+
+  units:
+    - name: systemd-sysctl.service
+      command: restart
+
+    - name: lsi-settings.service
+      command: start
+      content: |
+        [Unit]
+        Description=Configure performance settings for LSI cards
+
+        [Service]
+        Type=oneshot
+        RemainAfterExit=yes
+        ExecStart=/root/bin/lsi_settings.sh
+
+    - name: lsi-initial-setup.service
+      command: start
+      content: |
+        [Unit]
+        Description=Format and raid LSI cards if not already done
+        After=lsi-settings.service
+
+        [Service]
+        Type=oneshot
+        RemainAfterExit=yes
+        ExecStart=/root/bin/lsi_format.sh %m
+
+    - name: lsi-docker-mount.service
+      command: start
+      content: |
+        [Unit]
+        Description=Add mounts for lsi cards into /var/lib/docker
+        Before=docker.service
+        After=lsi-initial-setup.service
+
+        [Service]
+        Type=oneshot
+        RemainAfterExit=yes
+        ExecStart=/root/bin/add_raid_uuid_to_fstab.sh
+
+    - name: docker.service
+      command: start
+      content: |
+        [Unit]
+        Description=Docker Application Container Engine
+        Documentation=http://docs.docker.io
+        Requires=docker.socket
+        
+        [Service]
+        Environment="TMPDIR=/var/tmp/"
+        ExecStartPre=/bin/mount --make-rprivate /
+        LimitNOFILE=1048576
+        LimitNPROC=1048576
+        # Run docker but don't have docker automatically restart
+        # containers. This is a job for systemd and unit files.
+        # Turn off inter-container communication (--icc=false) so the containers
+        # can't communicate over etcd or with each other.
+        ExecStart=/usr/bin/docker -d -s=btrfs -r=false --icc=false -H fd://
+
+        [Install]
+        WantedBy=multi-user.target
+
+    - name: configproxy.service
+      enable: true
+      command: start
+      content: |
+        [Unit]
+        Description=ConfigProxy
+        After=docker.service
+        Requires=docker.service
+        [Service]
+        Restart=always
+        ExecStartPre=/usr/bin/docker pull jupyter/configurable-http-proxy
+        ExecStart=/usr/bin/docker run --net=host --name configproxy -e CONFIGPROXY_AUTH_TOKEN=HOKEYTOKEN jupyter/configurable-http-proxy --default-target http://127.0.0.1:9999
+        ExecStop=/usr/bin/docker rm -f configproxy
+        [Install]
+        WantedBy=tmpnb.target
+
+    - name: pull-user-image.service
+      command: start
+      content: |
+        [Unit]
+        Description=Pull the image for users on tmpnb
+        After=docker.service
+
+        [Service]
+        Type=oneshot
+        ExecStart=/usr/bin/docker pull jupyter/demo
+
+    - name: port-80-redirect-iptables.service
+      command: start
+      content: |
+        [Unit]
+        Description=Redirect 80 to 8000
+        After=tmpnb.service
+
+        [Service]
+        Type=oneshot
+        ExecStart=/usr/sbin/iptables -t nat -A PREROUTING -p tcp --dport 80 -j REDIRECT --to 8000
+
+    - name: tmpnb.service
+      enable: true
+      command: start
+      content: |
+        [Unit]
+        Description=tmpnb
+        After=configproxy.service
+        Requires=configproxy.service
+        [Service]
+        Restart=always
+        ExecStartPre=/usr/bin/docker pull jupyter/demo
+        ExecStartPre=/usr/bin/docker pull jupyter/tmpnb
+        ExecStart=/usr/bin/docker run --name tmpnb --net=host -e CONFIGPROXY_AUTH_TOKEN=HOKEYTOKEN -v /var/run/docker.sock:/docker.sock jupyter/tmpnb python orchestrate.py --cull-timeout=600 --docker-version=1.13 --pool-size=128
+        ExecStop=/usr/bin/docker rm -f tmpnb
+        [Install]
+        WantedBy=tmpnb.target
