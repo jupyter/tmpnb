@@ -4,6 +4,11 @@
 
 Launches "temporary" IPython notebook servers.
 
+#### :warning: Hardware assumptions :warning:
+
+* Reasonably fast IOPS (SSDs, PCIe cards)
+* Enough CPUs and memory for all the users (`mem_limit`*`pool_size` < Available RAM)
+
 #### Quick start
 
 Get Docker, then:
