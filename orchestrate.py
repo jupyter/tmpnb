@@ -31,6 +31,7 @@ class StatsHandler(RequestHandler):
         response = {
                 'available': len(self.pool.available),
                 'capacity': self.pool.capacity,
+                'version': '0.0.1',
         }
         self.write(response)
 
