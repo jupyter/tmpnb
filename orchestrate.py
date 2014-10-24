@@ -29,6 +29,8 @@ class StatsHandler(RequestHandler):
     def get(self):
         '''Returns some statistics/metadata about the tmpnb server'''
         response = {
+                'available': len(self.pool.available),
+                'capacity': self.pool.capacity,
         }
         self.write(response)
 
