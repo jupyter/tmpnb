@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import datetime
+import json
 import os
 import uuid
 
@@ -23,6 +24,20 @@ class LoadingHandler(RequestHandler):
     def get(self, path=None):
         self.render("loading.html", path=path)
 
+
+class StatsHandler(RequestHandler):
+    def get(self):
+        '''Returns some statistics/metadata about the tmpnb server'''
+        response = {
+                'available': len(self.pool.available),
+                'capacity': self.pool.capacity,
+                'version': '0.0.1',
+        }
+        self.write(response)
+
+    @property
+    def pool(self):
+        return self.settings['pool']
 
 class SpawnHandler(RequestHandler):
 
@@ -115,6 +130,7 @@ def main():
         (r"/", LoadingHandler),
         (r"/spawn/?(/user-\w+(?:/.*)?)?", SpawnHandler),
         (r"/(user-\w+)(?:/.*)?", LoadingHandler),
+        (r"/stats", StatsHandler),
     ]
 
     proxy_token = os.environ['CONFIGPROXY_AUTH_TOKEN']
