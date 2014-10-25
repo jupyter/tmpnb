@@ -196,7 +196,7 @@ def main():
 
     if(opts.static_files):
         pooled_container = pool.acquire()
-        copy_container = pooled_container['Id']
+        copy_container = pooled_container.id
 
         tarball = spawner.copy_files(copy_container, opts.static_files)
 
