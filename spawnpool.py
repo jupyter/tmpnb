@@ -301,9 +301,9 @@ class SpawnPool():
     @gen.coroutine
     def copy_static(self):
         if(self.static_files is None):
-            raise Exception("static_files must be set in order to copy them")
+            raise Exception("static_files must be set in order to dump them")
 
-        container = self.acquire()
+        container = self.available[0]
 
         app_log.info("Extracting static files from container {}".format(container.id))
 
@@ -314,12 +314,6 @@ class SpawnPool():
         tar.close()
 
         app_log.debug("Static files extracted")
-
-        yield self.release(container)
-
-        app_log.debug("Released container used for static extraction")
-
-
 
 class Diagnosis():
     '''Collect and organize information to self-heal a SpawnPool.
