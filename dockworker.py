@@ -161,3 +161,8 @@ class DockerSpawner():
                 raise gen.Return(result)
             else:
                 raise e
+
+    @gen.coroutine
+    def copy_files(self, container_id, path):
+        '''Returns a tarball of path from container_id'''
+        yield self.docker_client.copy(container_id, path)

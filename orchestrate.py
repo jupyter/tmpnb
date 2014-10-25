@@ -122,6 +122,9 @@ def main():
     tornado.options.define('pool_size', default=128,
         help="Capacity for containers on this system. Will be prelaunched at startup."
     )
+    tornado.options.define('static_files', default=None,
+        help="Static files to extract from the initial container launch"
+    )
 
     tornado.options.parse_command_line()
     opts = tornado.options.options
@@ -162,8 +165,9 @@ def main():
 
     ioloop = tornado.ioloop.IOLoop().instance()
 
+    static_path = os.path.join(os.path.dirname(__file__), "static")
     settings = dict(
-        static_path=os.path.join(os.path.dirname(__file__), "static"),
+        static_path=static_path,
         cookie_secret=uuid.uuid4(),
         xsrf_cookies=True,
         debug=True,
@@ -189,6 +193,17 @@ def main():
                  opts.cull_period)
     culler = tornado.ioloop.PeriodicCallback(pool.heartbeat, cull_ms)
     culler.start()
+
+    if(opts.static_files):
+        pooled_container = pool.acquire()
+        copy_container = pooled_container['Id']
+
+        tarball = spawner.copy_files(copy_container, opts.static_files)
+
+        tar = open(os.path.join(static_path, "static.tar"), "wb")
+        tar.write(tarball.content)
+        tar.close()
+
 
     app_log.info("Listening on {}".format(opts.port))
     application = tornado.web.Application(handlers, **settings)
