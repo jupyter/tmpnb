@@ -43,6 +43,7 @@ ADD notebooks/ /home/jupyter/
 
 # Add Google Analytics templates
 ADD ga/ /srv/ga/
+ADD static/ipynblogo.png /srv/ipython/IPython/html/static/base/images/ipynblogo.png
 
 RUN chmod a+rX /srv/R/ -R
 RUN chown jupyter:jupyter /home/jupyter -R
