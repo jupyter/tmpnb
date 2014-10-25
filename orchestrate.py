@@ -8,8 +8,6 @@ import uuid
 
 from concurrent.futures import ThreadPoolExecutor
 
-import docker
-
 import tornado
 import tornado.options
 from tornado.log import app_log
@@ -150,24 +148,29 @@ def main():
         mem_limit=opts.mem_limit,
         cpu_shares=opts.cpu_shares,
         container_ip=opts.container_ip,
-        container_port=opts.container_port
+        container_port=opts.container_port,
     )
 
     spawner = dockworker.DockerSpawner(docker_host,
                                        version=opts.docker_version,
                                        timeout=30,
-                                       max_workers=opts.max_dock_workers)
+                                       max_workers=opts.max_dock_workers,
+    )
+
+    static_path = os.path.join(os.path.dirname(__file__), "static")
 
     pool = spawnpool.SpawnPool(proxy_endpoint=proxy_endpoint,
                                proxy_token=proxy_token,
                                spawner=spawner,
                                container_config=container_config,
                                capacity=opts.pool_size,
-                               max_age=max_age)
+                               max_age=max_age,
+                               static_files=opts.static_files,
+                               static_dump_path=static_path,
+    )
 
     ioloop = tornado.ioloop.IOLoop().instance()
 
-    static_path = os.path.join(os.path.dirname(__file__), "static")
     settings = dict(
         static_path=static_path,
         cookie_secret=uuid.uuid4(),
@@ -188,21 +191,7 @@ def main():
     ioloop.run_sync(pool.heartbeat)
 
     if(opts.static_files):
-        docker_client = docker.Client(base_url=docker_host,
-                                      version=opts.docker_version,
-                                      timeout=30)
-
-        container = pool.acquire()
-
-        app_log.info("Extracting static files from container {}".format(container.id))
-        
-        tarball = docker_client.copy(container.id, opts.static_files)
-
-        tar = open(os.path.join(static_path, "static.tar"), "wb")
-        tar.write(tarball.data)
-        tar.close()
-
-        app_log.info("Static files extracted")
+        ioloop.run_sync(pool.copy_static)
 
     # Periodically execute a heartbeat function to cull used containers and regenerated failed
     # ones, self-healing the cluster.
