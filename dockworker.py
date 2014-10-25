@@ -47,7 +47,7 @@ class DockerSpawner():
     def __init__(self,
                  docker_host='unix://var/run/docker.sock',
                  version='1.12',
-                 timeout=20,
+                 timeout=30,
                  max_workers=64):
 
         blocking_docker_client = docker.Client(base_url=docker_host,

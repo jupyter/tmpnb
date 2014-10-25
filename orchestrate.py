@@ -8,6 +8,8 @@ import uuid
 
 from concurrent.futures import ThreadPoolExecutor
 
+import docker
+
 import tornado
 import tornado.options
 from tornado.log import app_log
@@ -153,7 +155,7 @@ def main():
 
     spawner = dockworker.DockerSpawner(docker_host,
                                        version=opts.docker_version,
-                                       timeout=20,
+                                       timeout=30,
                                        max_workers=opts.max_dock_workers)
 
     pool = spawnpool.SpawnPool(proxy_endpoint=proxy_endpoint,
@@ -185,6 +187,23 @@ def main():
     # containers, ready to serve.
     ioloop.run_sync(pool.heartbeat)
 
+    if(opts.static_files):
+        docker_client = docker.Client(base_url=docker_host,
+                                      version=opts.docker_version,
+                                      timeout=30)
+
+        container = pool.acquire()
+
+        app_log.info("Extracting static files from container {}".format(container.id))
+        
+        tarball = docker_client.copy(container.id, opts.static_files)
+
+        tar = open(os.path.join(static_path, "static.tar"), "wb")
+        tar.write(tarball.data)
+        tar.close()
+
+        app_log.info("Static files extracted")
+
     # Periodically execute a heartbeat function to cull used containers and regenerated failed
     # ones, self-healing the cluster.
     cull_ms = opts.cull_period * 1e3
@@ -193,17 +212,6 @@ def main():
                  opts.cull_period)
     culler = tornado.ioloop.PeriodicCallback(pool.heartbeat, cull_ms)
     culler.start()
-
-    if(opts.static_files):
-        pooled_container = pool.acquire()
-        copy_container = pooled_container.id
-
-        tarball = spawner.copy_files(copy_container, opts.static_files)
-
-        tar = open(os.path.join(static_path, "static.tar"), "wb")
-        tar.write(tarball.content)
-        tar.close()
-
 
     app_log.info("Listening on {}".format(opts.port))
     application = tornado.web.Application(handlers, **settings)
