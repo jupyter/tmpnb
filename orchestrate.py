@@ -122,6 +122,9 @@ def main():
     tornado.options.define('pool_size', default=128,
         help="Capacity for containers on this system. Will be prelaunched at startup."
     )
+    tornado.options.define('static_files', default=None,
+        help="Static files to extract from the initial container launch"
+    )
 
     tornado.options.parse_command_line()
     opts = tornado.options.options
@@ -145,25 +148,31 @@ def main():
         mem_limit=opts.mem_limit,
         cpu_shares=opts.cpu_shares,
         container_ip=opts.container_ip,
-        container_port=opts.container_port
+        container_port=opts.container_port,
     )
 
     spawner = dockworker.DockerSpawner(docker_host,
                                        version=opts.docker_version,
-                                       timeout=20,
-                                       max_workers=opts.max_dock_workers)
+                                       timeout=30,
+                                       max_workers=opts.max_dock_workers,
+    )
+
+    static_path = os.path.join(os.path.dirname(__file__), "static")
 
     pool = spawnpool.SpawnPool(proxy_endpoint=proxy_endpoint,
                                proxy_token=proxy_token,
                                spawner=spawner,
                                container_config=container_config,
                                capacity=opts.pool_size,
-                               max_age=max_age)
+                               max_age=max_age,
+                               static_files=opts.static_files,
+                               static_dump_path=static_path,
+    )
 
     ioloop = tornado.ioloop.IOLoop().instance()
 
     settings = dict(
-        static_path=os.path.join(os.path.dirname(__file__), "static"),
+        static_path=static_path,
         cookie_secret=uuid.uuid4(),
         xsrf_cookies=True,
         debug=True,
@@ -180,6 +189,9 @@ def main():
     # Synchronously cull any existing, inactive containers, and pre-launch a set number of
     # containers, ready to serve.
     ioloop.run_sync(pool.heartbeat)
+
+    if(opts.static_files):
+        ioloop.run_sync(pool.copy_static)
 
     # Periodically execute a heartbeat function to cull used containers and regenerated failed
     # ones, self-healing the cluster.

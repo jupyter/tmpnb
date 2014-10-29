@@ -47,7 +47,7 @@ class DockerSpawner():
     def __init__(self,
                  docker_host='unix://var/run/docker.sock',
                  version='1.12',
-                 timeout=20,
+                 timeout=30,
                  max_workers=64):
 
         blocking_docker_client = docker.Client(base_url=docker_host,
@@ -161,3 +161,9 @@ class DockerSpawner():
                 raise gen.Return(result)
             else:
                 raise e
+
+    @gen.coroutine
+    def copy_files(self, container_id, path):
+        '''Returns a tarball of path from container_id'''
+        tarball = yield self.docker_client.copy(container_id, path)
+        raise gen.Return(tarball)

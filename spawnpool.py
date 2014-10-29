@@ -1,3 +1,10 @@
+import errno
+import json
+import os
+import random
+import string
+import socket
+
 from concurrent.futures import ThreadPoolExecutor
 from collections import deque, namedtuple
 from datetime import datetime, timedelta
@@ -7,12 +14,7 @@ from tornado.log import app_log
 from tornado.httpclient import HTTPRequest, HTTPError, AsyncHTTPClient
 from tornado.httputil import url_concat
 
-import errno
-import string
-import socket
 import pytz
-import random
-import json
 import dockworker
 
 AsyncHTTPClient.configure("tornado.curl_httpclient.CurlAsyncHTTPClient")
@@ -48,7 +50,10 @@ class SpawnPool():
                  spawner,
                  container_config,
                  capacity,
-                 max_age):
+                 max_age,
+                 static_files=None,
+                 static_dump_path=os.path.join(os.path.dirname(__file__),
+                                               "static")):
         '''Create a new, empty spawn pool, with nothing preallocated.'''
 
         self.spawner = spawner
@@ -60,6 +65,9 @@ class SpawnPool():
         self.proxy_token = proxy_token
 
         self.available = deque()
+
+        self.static_files=static_files
+        self.static_dump_path=static_dump_path
 
     def acquire(self):
         '''Acquire a preallocated container and returns its user path.
@@ -290,6 +298,22 @@ class SpawnPool():
         except HTTPError as e:
             app_log.error("Failed to delete route [%s]: %s", path, e)
 
+    @gen.coroutine
+    def copy_static(self):
+        if(self.static_files is None):
+            raise Exception("static_files must be set in order to dump them")
+
+        container = self.available[0]
+
+        app_log.info("Extracting static files from container {}".format(container.id))
+
+        tarball = yield self.spawner.copy_files(container.id, self.static_files)
+
+        tar = open(os.path.join(self.static_dump_path, "static.tar"), "wb")
+        tar.write(tarball.data)
+        tar.close()
+
+        app_log.debug("Static files extracted")
 
 class Diagnosis():
     '''Collect and organize information to self-heal a SpawnPool.
@@ -372,3 +396,4 @@ class Diagnosis():
         except HTTPError as e:
             app_log.error("Unable to list existing proxy entries: %s", e)
             raise gen.Return({})
+

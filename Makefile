@@ -25,7 +25,7 @@ tmpnb: minimal-image tmpnb-image
 	docker run --net=host -d -e CONFIGPROXY_AUTH_TOKEN=devtoken \
 		-v /var/run/docker.sock:/docker.sock jupyter/tmpnb python orchestrate.py \
 		--image=jupyter/minimal --cull_timeout=$(CULL_TIMEOUT) --cull_period=$(CULL_PERIOD) \
-		--logging=$(LOGGING) --pool_size=$(POOL_SIZE)
+		--logging=$(LOGGING) --pool_size=$(POOL_SIZE) --static-files=/srv/ipython/IPython/html/static/
 
 dev: cleanup proxy tmpnb
 
