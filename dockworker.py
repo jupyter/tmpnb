@@ -68,15 +68,17 @@ class DockerSpawner():
 
         port = container_config.container_port
 
+        app_log.debug(container_config)
+
         # Assumes that the container_config.command is of a format like:
         #
         #  ipython3 notebook --no-browser --port {port} --ip=0.0.0.0
-        #    --NotebookApp.base_url=/{base_url}
+        #    --NotebookApp.base_path=/{base_path}
         #    --NotebookApp.tornado_settings=\"{ \"template_path\": [ \"/srv/ga\",
         #    \"/srv/ipython/IPython/html\",
         #    \"/srv/ipython/IPython/html/templates\" ] }\""
         #
-        # Important piece here is the parametrized base_url to let the
+        # Important piece here is the parametrized base_path to let the
         # underlying process know where the proxy is routing it.
         rendered_command = container_config.command.format(base_path=base_path, port=port)
 
