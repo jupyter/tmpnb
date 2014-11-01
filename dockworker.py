@@ -9,7 +9,7 @@ from tornado import gen, web
 
 
 ContainerConfig = namedtuple('ContainerConfig', [
-    'image', 'ipython_executable', 'mem_limit', 'cpu_shares', 'container_ip', 'container_port'
+    'image', 'command', 'mem_limit', 'cpu_shares', 'container_ip', 'container_port'
 ])
 
 # Number of times to retry API calls before giving up.
@@ -66,26 +66,24 @@ class DockerSpawner():
 
         Returns the container_id, ip, port in a Future.'''
 
-        templates = ['/srv/ga',
-                     '/srv/ipython/IPython/html',
-                     '/srv/ipython/IPython/html/templates']
+        port = container_config.container_port
 
-        tornado_settings = {'template_path': templates}
-
-        ipython_args = [
-                "notebook", "--no-browser",
-                "--port {}".format(container_config.container_port),
-                "--ip=0.0.0.0",
-                "--NotebookApp.base_url=/{}".format(base_path),
-                "--NotebookApp.tornado_settings=\"{}\"".format(tornado_settings)
-        ]
-
-        ipython_command = container_config.ipython_executable + " " + " ".join(ipython_args)
+        # Assumes that the container_config.command is of a format like:
+        #
+        #  ipython3 notebook --no-browser --port {port} --ip=0.0.0.0
+        #    --NotebookApp.base_url=/{base_url}
+        #    --NotebookApp.tornado_settings=\"{ \"template_path\": [ \"/srv/ga\",
+        #    \"/srv/ipython/IPython/html\",
+        #    \"/srv/ipython/IPython/html/templates\" ] }\""
+        #
+        # Important piece here is the parametrized base_url to let the
+        # underlying process know where the proxy is routing it.
+        rendered_command = container_config.command.format(base_path=base_path, port=port)
 
         command = [
             "/bin/sh",
             "-c",
-            ipython_command
+            rendered_command
         ]
 
         resp = yield self._with_retries(self.docker_client.create_container,

@@ -95,8 +95,18 @@ def main():
     tornado.options.define('container_port', default='8888',
         help="Port for containers to bind to"
     )
-    tornado.options.define('ipython_executable', default='ipython3',
-        help="IPython Notebook startup (e.g. ipython, ipython2, ipython3)"
+
+    command_default = (
+        'ipython3 notebook --no-browser'
+        ' --port {port} --ip=0.0.0.0'
+        ' --NotebookApp.base_url=/{base_url}'
+        ' --NotebookApp.tornado_settings="{ "template_path": ['
+            '"/srv/ga", "/srv/ipython/IPython/html",'
+            '"/srv/ipython/IPython/html/templates" ] }"'
+    )
+
+    tornado.options.define('command', default=command_default,
+        help="command to run when booting the image. A placeholder for base_url should be provided."
     )
     tornado.options.define('port', default=9999,
         help="port for the main server to listen on"
@@ -144,7 +154,7 @@ def main():
 
     container_config = dockworker.ContainerConfig(
         image=opts.image,
-        ipython_executable=opts.ipython_executable,
+        command=opts.command,
         mem_limit=opts.mem_limit,
         cpu_shares=opts.cpu_shares,
         container_ip=opts.container_ip,
