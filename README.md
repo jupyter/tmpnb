@@ -27,22 +27,8 @@ BAM! Visit your host on port 8000 and you have a working tmpnb setup.
 If you need to set the `docker-version` or other options, they can be passed to `jupyter/tmpnb` directly:
 
 ```
-docker run --net=host -d -e CONFIGPROXY_AUTH_TOKEN=$TOKEN -v /var/run/docker.sock:/docker.sock jupyter/tmpnb python orchestrate.py --cull-timeout=60 --docker-version="1.13"
+docker run --net=host -d -e CONFIGPROXY_AUTH_TOKEN=$TOKEN -v /var/run/docker.sock:/docker.sock jupyter/tmpnb python orchestrate.py --cull-timeout=60 --docker-version="1.13" --command="ipython3 notebook --NotebookApp.base_url={base_path} --ip=0.0.0.0 --port {port}"
 ```
-
-#### Installation
-
-If doing direct installation, you'll need to install it within `/srv/tmpnb` on Ubuntu 14.04.
-
-```
-mkdir -p /srv/
-cd /srv/
-git clone https://github.com/jupyter/tmpnb.git
-cd tmpnb
-script/bootstrap
-```
-
-The running user needs permission on the Docker socket.
 
 #### Development
 
@@ -50,13 +36,7 @@ The running user needs permission on the Docker socket.
 git clone https://github.com/jupyter/tmpnb.git
 cd tmpnb
 
-# If modifying the Docker image in any way
-docker build -t jupyter/demo images/demo
-
-pip install -r requirements.txt
-npm install jupyter/configurable-http-proxy
-
 # Kick off the proxy and run the server.
 # Runs on all interfaces on port 8000 by default.
-script/dev
+make dev
 ```
