@@ -16,6 +16,7 @@ RUN apt-get build-dep -y mpi4py && pip2 install scikit-image vincent dill networ
 # Install R, the R kernel, and R magics
 RUN apt-get install -y r-base r-base-dev r-cran-rcurl libreadline-dev
 RUN pip2 install rpy2 && pip3 install rpy2
+RUN pip2 install terminado && pip3 install terminado
 
 # Julia Installation
 RUN apt-get install software-properties-common python-software-properties -y && \

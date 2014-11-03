@@ -2,6 +2,8 @@ FROM ipython/ipython
 
 MAINTAINER IPython Project <ipython-dev@scipy.org>
 
+RUN pip2 install terminado && pip3 install terminado
+
 # The ipython/ipython image has the full working copy of IPython
 RUN chmod a+rwX /srv/ipython/examples
 
