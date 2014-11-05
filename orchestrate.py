@@ -109,7 +109,7 @@ def main():
     tornado.options.define('port', default=9999,
         help="port for the main server to listen on"
     )
-    tornado.options.define('max_dock_workers', default=24,
+    tornado.options.define('max_dock_workers', default=2,
         help="Maximum number of docker workers"
     )
     tornado.options.define('mem_limit', default="512m",
