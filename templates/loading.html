@@ -24,7 +24,7 @@
       window.location = "/spawn" + window.location.pathname;
     } else {
       msgDiv = document.getElementById("message");
-      msgDiv.innerHTML = "<p>Your browser does not support WebSockets, a necessary technology for the IPython Notebook. Please use:</p><ul><li>Mozilla Firefox 6+</li><li>Google Chrome 13+</li><li>Safari 5+</li></ul><p>Thanks!</p>";
+      msgDiv.innerHTML = "<p>Uh oh. Either your network does not allow WebSockets (needed to communicate with IPython) or your browser is unsupported. Please use:</p><ul><li>Chrome ≥ 13</li><li>Safari ≥ 5</li><li>Firefox ≥ 6</li></ul></p>Thanks!</p>";
     }
 
 
