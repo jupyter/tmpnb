@@ -8,17 +8,26 @@
 <body>
 
   <div class="jumbotron">
-    <div class="container text-center">
+    <div id="main" class="container text-center">
       <h1>tmpnb</h1>
-      {% if path %}
-      <p>The server you requested is no longer running or it doesn't exist.</p>
-      {% end %}
-      <p>Starting a new notebook server, just for you...<p>
+      <div id="message">
+        {% if path %}
+        <p>The server you requested is no longer running or it doesn't exist.</p>
+        {% end %}
+        <p>Starting a new notebook server, just for you...<p>
+      </div>
     </div>
   </div>
 
   <script type="text/javascript">
-    window.location = "/spawn" + window.location.pathname;
+    if (window.WebSocket && new WebSocket("ws://echo.websocket.net")) {
+      window.location = "/spawn" + window.location.pathname;
+    } else {
+      msgDiv = document.getElementById("message");
+      msgDiv.innerHTML = "<p>Your browser does not support WebSockets, a necessary technology for the IPython Notebook. Please use:</p><ul><li>Mozilla Firefox 6+</li><li>Google Chrome 13+</li><li>Safari 5+</li></ul><p>Thanks!</p>";
+    }
+
+
   </script>
 </body>
 </html>
