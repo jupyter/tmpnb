@@ -4,6 +4,7 @@
 import datetime
 import json
 import os
+import re
 import uuid
 
 from concurrent.futures import ThreadPoolExecutor
@@ -154,7 +155,8 @@ def main():
     max_age = datetime.timedelta(seconds=opts.cull_timeout)
     pool_name = opts.pool_name
     if pool_name is None:
-        pool_name = opts.image.split(':')[0]
+        # Derive a valid container name from the image name by default.
+        pool_name = re.sub('[^a-zA-Z0-_.-9]', '', opts.image.split(':')[0])
 
     container_config = dockworker.ContainerConfig(
         image=opts.image,
