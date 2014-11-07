@@ -1,5 +1,6 @@
 from concurrent.futures import ThreadPoolExecutor
 from collections import namedtuple
+import re
 
 import docker
 
@@ -126,18 +127,14 @@ class DockerSpawner():
         yield self._with_retries(self.docker_client.remove_container, container_id)
 
     @gen.coroutine
-    def list_notebook_servers(self, container_config, all=True):
-        '''List containers that were launched from a specific image.'''
+    def list_notebook_servers(self, pool_regex, all=True):
+        '''List containers that are managed by a specific pool.'''
 
         existing = yield self._with_retries(self.docker_client.containers,
                                             all=all,
                                             trunc=False)
 
-        untagged_image = container_config.image.split(':')[0]
-        def has_matching_image(container):
-            return container['Image'].split(':')[0] == untagged_image
-
-        matching = [container for container in existing if has_matching_image(container)]
+        matching = [container for container in existing if pool_regex.match(container['Name'])]
         raise gen.Return(matching)
 
     @gen.coroutine
