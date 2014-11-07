@@ -135,7 +135,13 @@ class DockerSpawner():
                                             all=all,
                                             trunc=False)
 
-        matching = [container for container in existing if pool_regex.match(container['Name'])]
+        def name_matches(container):
+            for name in container['Names']:
+                if pool_regex.match(name):
+                    return True
+            return False
+
+        matching = [container for container in existing if name_matches(container)]
         raise gen.Return(matching)
 
     @gen.coroutine
