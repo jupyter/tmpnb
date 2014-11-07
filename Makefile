@@ -38,4 +38,10 @@ cleanup:
 	-docker rm   `docker ps -aq`
 	-docker images -q --filter "dangling=true" | xargs docker rmi
 
+log-tmpnb:
+	docker logs -f tmpnb
+
+log-proxy:
+	docker logs -f proxy
+
 .PHONY: cleanup-images
