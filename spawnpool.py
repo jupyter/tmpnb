@@ -64,7 +64,7 @@ class SpawnPool():
         self.max_age = max_age
 
         self.pool_name = pool_name
-        self.name_pattern = re.compile('\Atmp-([^-]+)@(.+)\Z')
+        self.name_pattern = re.compile('tmp\.([^.]+)\.(.+)\Z')
 
         self.proxy_endpoint = proxy_endpoint
         self.proxy_token = proxy_token
@@ -204,7 +204,9 @@ class SpawnPool():
 
         # This must match self.name_pattern or Bad Things will happen.
         # You don't want Bad Things to happen, do you?
-        name = 'tmp-{}-{}'.format(self.pool_name, path)
+        name = 'tmp.{}.{}'.format(self.pool_name, path)
+        if not self.name_pattern.match(name):
+            raise Exception("[{}] does not match [{}]!".format(name, self.name_pattern.pattern))
 
         app_log.debug("Launching new notebook server [%s] at path [%s].", name, path)
         create_result = yield self.spawner.create_notebook_server(base_path=path,

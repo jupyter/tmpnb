@@ -156,7 +156,7 @@ def main():
     pool_name = opts.pool_name
     if pool_name is None:
         # Derive a valid container name from the image name by default.
-        pool_name = re.sub('[^a-zA-Z0-_.-9]', '', opts.image.split(':')[0])
+        pool_name = re.sub('[^a-zA-Z0_.-]+', '', opts.image.split(':')[0])
 
     container_config = dockworker.ContainerConfig(
         image=opts.image,

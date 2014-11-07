@@ -137,7 +137,7 @@ class DockerSpawner():
 
         def name_matches(container):
             for name in container['Names']:
-                if pool_regex.match(name):
+                if pool_regex.search(name):
                     return True
             return False
 
