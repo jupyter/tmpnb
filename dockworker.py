@@ -62,10 +62,10 @@ class DockerSpawner():
         self.docker_client = async_docker_client
 
     @gen.coroutine
-    def create_notebook_server(self, base_path, container_config):
+    def create_notebook_server(self, base_path, name, container_config):
         '''Creates a notebook_server running off of `base_path`.
 
-        Returns the container_id, ip, port in a Future.'''
+        Returns the (container_id, ip, port) tuple in a Future.'''
 
         port = container_config.container_port
 
@@ -93,7 +93,8 @@ class DockerSpawner():
                                         image=container_config.image,
                                         command=command,
                                         mem_limit=container_config.mem_limit,
-                                        cpu_shares=container_config.cpu_shares)
+                                        cpu_shares=container_config.cpu_shares,
+                                        name=name)
 
         docker_warnings = resp['Warnings']
         if docker_warnings is not None:

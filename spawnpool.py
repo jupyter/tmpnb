@@ -15,6 +15,7 @@ from tornado.httpclient import HTTPRequest, HTTPError, AsyncHTTPClient
 from tornado.httputil import url_concat
 
 import pytz
+import re
 import dockworker
 
 AsyncHTTPClient.configure("tornado.curl_httpclient.CurlAsyncHTTPClient")
@@ -51,6 +52,7 @@ class SpawnPool():
                  container_config,
                  capacity,
                  max_age,
+                 pool_name,
                  static_files=None,
                  static_dump_path=os.path.join(os.path.dirname(__file__),
                                                "static")):
@@ -61,13 +63,16 @@ class SpawnPool():
         self.capacity = capacity
         self.max_age = max_age
 
+        self.pool_name = pool_name
+        self.name_pattern = re.compile('\Atmp-([^-]+)@(.+)\Z')
+
         self.proxy_endpoint = proxy_endpoint
         self.proxy_token = proxy_token
 
         self.available = deque()
 
-        self.static_files=static_files
-        self.static_dump_path=static_dump_path
+        self.static_files = static_files
+        self.static_dump_path = static_dump_path
 
     def acquire(self):
         '''Acquire a preallocated container and returns its user path.
@@ -110,8 +115,7 @@ class SpawnPool():
             return
 
         if replace_if_room:
-            running = yield self.spawner.list_notebook_servers(self.container_config,
-                                                                    all=False)
+            running = yield self.spawner.list_notebook_servers(self.name_pattern, all=False)
             if len(running) + 1 <= self.capacity:
                 app_log.debug("Launching a replacement container.")
                 yield self._launch_container()
@@ -131,7 +135,7 @@ class SpawnPool():
 
         diagnosis = Diagnosis(self.max_age,
                               self.spawner,
-                              self.container_config,
+                              self.name_pattern,
                               self.proxy_endpoint,
                               self.proxy_token)
         yield diagnosis.observe()
@@ -198,11 +202,16 @@ class SpawnPool():
         if path is None:
             path = user_prefix()
 
-        app_log.debug("Launching new notebook server at path [%s].", path)
+        # This must match self.name_pattern or Bad Things will happen.
+        # You don't want Bad Things to happen, do you?
+        name = 'tmp-{}-{}'.format(self.pool_name, path)
+
+        app_log.debug("Launching new notebook server [%s] at path [%s].", name, path)
         create_result = yield self.spawner.create_notebook_server(base_path=path,
+                                                                  name=name,
                                                                   container_config=self.container_config)
         container_id, host_ip, host_port = create_result
-        app_log.debug("Created notebook server for path [%s] at [%s:%s]", path, host_ip, host_port)
+        app_log.debug("Created notebook server [%s] for path [%s] at [%s:%s]", name, path, host_ip, host_port)
 
         # Wait for the server to launch within the container before adding it to the pool or
         # serving it to a user.
@@ -322,9 +331,9 @@ class Diagnosis():
     correct them. This includes zombie containers, containers that are running but not routed in the
     proxy, proxy routes that exist without a corresponding container, or other strange conditions.'''
 
-    def __init__(self, cull_time, spawner, container_config, proxy_endpoint, proxy_token):
+    def __init__(self, cull_time, spawner, name_pattern, proxy_endpoint, proxy_token):
         self.spawner = spawner
-        self.container_config = container_config
+        self.name_pattern = name_pattern
         self.proxy_endpoint = proxy_endpoint
         self.proxy_token = proxy_token
         self.cull_time = cull_time
@@ -334,7 +343,7 @@ class Diagnosis():
         '''Collect Ground Truth of what's actually running from Docker and the proxy.'''
 
         results = yield {
-            "docker": self.spawner.list_notebook_servers(self.container_config, all=True),
+            "docker": self.spawner.list_notebook_servers(self.name_pattern, all=True),
             "proxy": self._proxy_routes()
         }
 
@@ -396,4 +405,3 @@ class Diagnosis():
         except HTTPError as e:
             app_log.error("Unable to list existing proxy entries: %s", e)
             raise gen.Return({})
-
