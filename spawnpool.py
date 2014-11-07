@@ -74,6 +74,8 @@ class SpawnPool():
         self.static_files = static_files
         self.static_dump_path = static_dump_path
 
+        self._heart_beating = False
+
     def acquire(self):
         '''Acquire a preallocated container and returns its user path.
 
@@ -130,6 +132,11 @@ class SpawnPool():
 
         A container is considered "used" if it isn't still present in the pool. If no max_age is
         specified, an hour is used.'''
+
+        if self._heart_beating:
+            app_log.debug("Previous heartbeat is still active. Skipping this one.")
+            return
+        self._heart_beating = True
 
         app_log.debug("Heartbeat begun. Measuring current state.")
 
@@ -193,6 +200,7 @@ class SpawnPool():
 
         app_log.debug("Heartbeat complete. The pool now includes [%i] containers.",
                       len(self.available))
+        self._heart_beating = False
 
     @gen.coroutine
     def _launch_container(self, path=None, enpool=True):
