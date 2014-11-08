@@ -4,6 +4,7 @@
 import datetime
 import json
 import os
+import re
 import uuid
 
 from concurrent.futures import ThreadPoolExecutor
@@ -130,6 +131,9 @@ def main():
     tornado.options.define('pool_size', default=128,
         help="Capacity for containers on this system. Will be prelaunched at startup."
     )
+    tornado.options.define('pool_name', default=None,
+        help="Container name fragment used to identity containers that belong to this instance."
+    )
     tornado.options.define('static_files', default=None,
         help="Static files to extract from the initial container launch"
     )
@@ -149,6 +153,10 @@ def main():
     docker_host = os.environ.get('DOCKER_HOST', 'unix://var/run/docker.sock')
 
     max_age = datetime.timedelta(seconds=opts.cull_timeout)
+    pool_name = opts.pool_name
+    if pool_name is None:
+        # Derive a valid container name from the image name by default.
+        pool_name = re.sub('[^a-zA-Z0_.-]+', '', opts.image.split(':')[0])
 
     container_config = dockworker.ContainerConfig(
         image=opts.image,
@@ -175,6 +183,7 @@ def main():
                                max_age=max_age,
                                static_files=opts.static_files,
                                static_dump_path=static_path,
+                               pool_name=pool_name,
     )
 
     ioloop = tornado.ioloop.IOLoop().instance()

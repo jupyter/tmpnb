@@ -1,5 +1,6 @@
 from concurrent.futures import ThreadPoolExecutor
 from collections import namedtuple
+import re
 
 import docker
 
@@ -61,10 +62,10 @@ class DockerSpawner():
         self.docker_client = async_docker_client
 
     @gen.coroutine
-    def create_notebook_server(self, base_path, container_config):
+    def create_notebook_server(self, base_path, name, container_config):
         '''Creates a notebook_server running off of `base_path`.
 
-        Returns the container_id, ip, port in a Future.'''
+        Returns the (container_id, ip, port) tuple in a Future.'''
 
         port = container_config.container_port
 
@@ -92,7 +93,8 @@ class DockerSpawner():
                                         image=container_config.image,
                                         command=command,
                                         mem_limit=container_config.mem_limit,
-                                        cpu_shares=container_config.cpu_shares)
+                                        cpu_shares=container_config.cpu_shares,
+                                        name=name)
 
         docker_warnings = resp['Warnings']
         if docker_warnings is not None:
@@ -126,18 +128,20 @@ class DockerSpawner():
         yield self._with_retries(self.docker_client.remove_container, container_id)
 
     @gen.coroutine
-    def list_notebook_servers(self, container_config, all=True):
-        '''List containers that were launched from a specific image.'''
+    def list_notebook_servers(self, pool_regex, all=True):
+        '''List containers that are managed by a specific pool.'''
 
         existing = yield self._with_retries(self.docker_client.containers,
                                             all=all,
                                             trunc=False)
 
-        untagged_image = container_config.image.split(':')[0]
-        def has_matching_image(container):
-            return container['Image'].split(':')[0] == untagged_image
+        def name_matches(container):
+            for name in container['Names']:
+                if pool_regex.search(name):
+                    return True
+            return False
 
-        matching = [container for container in existing if has_matching_image(container)]
+        matching = [container for container in existing if name_matches(container)]
         raise gen.Return(matching)
 
     @gen.coroutine
