@@ -136,71 +136,73 @@ class SpawnPool():
         if self._heart_beating:
             app_log.debug("Previous heartbeat is still active. Skipping this one.")
             return
-        self._heart_beating = True
+        try:
+            self._heart_beating = True
 
-        app_log.debug("Heartbeat begun. Measuring current state.")
+            app_log.debug("Heartbeat begun. Measuring current state.")
 
-        diagnosis = Diagnosis(self.max_age,
-                              self.spawner,
-                              self.name_pattern,
-                              self.proxy_endpoint,
-                              self.proxy_token)
-        yield diagnosis.observe()
+            diagnosis = Diagnosis(self.max_age,
+                                  self.spawner,
+                                  self.name_pattern,
+                                  self.proxy_endpoint,
+                                  self.proxy_token)
+            yield diagnosis.observe()
 
-        tasks = []
+            tasks = []
 
-        for id in diagnosis.stopped_container_ids:
-            app_log.debug("Removing stopped container [%s].", id)
-            tasks.append(self.spawner.shutdown_notebook_server(id, alive=False))
+            for id in diagnosis.stopped_container_ids:
+                app_log.debug("Removing stopped container [%s].", id)
+                tasks.append(self.spawner.shutdown_notebook_server(id, alive=False))
 
-        for path, id in diagnosis.zombie_routes:
-            app_log.debug("Removing zombie route [%s].", path)
-            tasks.append(self._proxy_remove(path))
+            for path, id in diagnosis.zombie_routes:
+                app_log.debug("Removing zombie route [%s].", path)
+                tasks.append(self._proxy_remove(path))
 
-        unpooled_stale_routes = [(path, id) for path, id in diagnosis.stale_routes
-                                    if id not in self._pooled_ids()]
-        for path, id in unpooled_stale_routes:
-            app_log.debug("Replacing stale route [%s] and container [%s].", path, id)
-            container = PooledContainer(path=path, id=id)
-            tasks.append(self.release(container, replace_if_room=True))
+            unpooled_stale_routes = [(path, id) for path, id in diagnosis.stale_routes
+                                        if id not in self._pooled_ids()]
+            for path, id in unpooled_stale_routes:
+                app_log.debug("Replacing stale route [%s] and container [%s].", path, id)
+                container = PooledContainer(path=path, id=id)
+                tasks.append(self.release(container, replace_if_room=True))
 
-        # Normalize the container count to its initial capacity by scheduling deletions if we're
-        # over or scheduling launches if we're under.
-        current = len(diagnosis.living_container_ids)
-        under = xrange(current, self.capacity)
-        over = xrange(self.capacity, current)
+            # Normalize the container count to its initial capacity by scheduling deletions if we're
+            # over or scheduling launches if we're under.
+            current = len(diagnosis.living_container_ids)
+            under = xrange(current, self.capacity)
+            over = xrange(self.capacity, current)
 
-        if under:
-            app_log.debug("Launching [%i] new containers to populate the pool.", len(under))
-        for i in under:
-            tasks.append(self._launch_container())
+            if under:
+                app_log.debug("Launching [%i] new containers to populate the pool.", len(under))
+            for i in under:
+                tasks.append(self._launch_container())
 
-        if over:
-            app_log.debug("Removing [%i] containers to diminish the pool.", len(over))
-        for i in over:
-            try:
-                pooled = self.acquire()
-                app_log.debug("Releasing container [%s] to shrink the pool.", pooled.id)
-                tasks.append(self.release(pooled, False))
-            except EmptyPoolError:
-                app_log.warning("Unable to shrink: pool is diminished, all containers in use.")
-                break
+            if over:
+                app_log.debug("Removing [%i] containers to diminish the pool.", len(over))
+            for i in over:
+                try:
+                    pooled = self.acquire()
+                    app_log.debug("Releasing container [%s] to shrink the pool.", pooled.id)
+                    tasks.append(self.release(pooled, False))
+                except EmptyPoolError:
+                    app_log.warning("Unable to shrink: pool is diminished, all containers in use.")
+                    break
 
-        yield tasks
+            yield tasks
 
-        # Summarize any actions taken to the log.
-        def summarize(message, list):
-            if list:
-                app_log.info(message, len(list))
-        summarize("Removed [%i] stopped containers.", diagnosis.stopped_container_ids)
-        summarize("Removed [%i] zombie routes.", diagnosis.zombie_routes)
-        summarize("Replaced [%i] stale containers.", unpooled_stale_routes)
-        summarize("Launched [%i] new containers.", under)
-        summarize("Removed [%i] excess containers from the pool.", over)
+            # Summarize any actions taken to the log.
+            def summarize(message, list):
+                if list:
+                    app_log.info(message, len(list))
+            summarize("Removed [%i] stopped containers.", diagnosis.stopped_container_ids)
+            summarize("Removed [%i] zombie routes.", diagnosis.zombie_routes)
+            summarize("Replaced [%i] stale containers.", unpooled_stale_routes)
+            summarize("Launched [%i] new containers.", under)
+            summarize("Removed [%i] excess containers from the pool.", over)
 
-        app_log.debug("Heartbeat complete. The pool now includes [%i] containers.",
-                      len(self.available))
-        self._heart_beating = False
+            app_log.debug("Heartbeat complete. The pool now includes [%i] containers.",
+                          len(self.available))
+        finally:
+            self._heart_beating = False
 
     @gen.coroutine
     def _launch_container(self, path=None, enpool=True):
