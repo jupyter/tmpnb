@@ -8,12 +8,31 @@
 <body>
 
   <div class="jumbotron">
-    <div class="container text-center">
+    <div id="main" class="container text-center">
       <h1>tmpnb</h1>
-      {% if path %}
-      <p>The server you requested is no longer running or it doesn't exist.</p>
-      {% end %}
-      <p>Starting a new notebook server, just for you...<p>
+      <div id="message">
+        <noscript>
+          <p>You'll need JavaScript enabled to enjoy this site!</p>
+        </noscript>
+	
+        <div id="websockets-ok">
+          {% if path %}
+          <p>The server you requested is no longer running or it doesn't exist.</p>
+          {% end %}
+          <p>Starting a new notebook server, just for you...<p>
+        </div>
+
+        <div id="websockets-uhoh">
+          <p>Uh oh. Either your network does not allow WebSockets (needed to communicate with IPython) or your browser is unsupported. Please use:</p>
+            <ul>
+              <li>Chrome ≥ 13</li>
+              <li>Safari ≥ 5</li>
+              <li>Firefox ≥ 6</li>
+            </ul>
+          </p>Thanks!</p>
+        </div>
+
+      </div>
     </div>
   </div>
 
@@ -30,7 +49,14 @@
   </script>
 
   <script type="text/javascript">
-    window.location = "/spawn" + window.location.pathname;
+    if (window.WebSocket && new WebSocket("ws://echo.websocket.net")) {
+      window.location = "/spawn" + window.location.pathname;
+    } else {
+      ok = document.getElementById("websocket-ok");
+      ok.style.display = 'none';
+      uhoh = document.getElementById("websocket-uhoh");
+      uhoh.style.display = 'block';
+    }
   </script>
 </body>
 </html>
