@@ -37,7 +37,7 @@
   </div>
 
   <script type="text/javascript">
-    if (window.WebSocket && new WebSocket("ws://echo.websocket.net")) {
+    if (window.WebSocket && new WebSocket("wss://echo.websocket.net")) {
       window.location = "/spawn" + window.location.pathname;
     } else {
       ok = document.getElementById("websocket-ok");
