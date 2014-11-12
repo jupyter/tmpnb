@@ -28,35 +28,36 @@ RUN apt-get install software-properties-common python-software-properties -y && 
 
 EXPOSE 8888
 
-# jupyter is our user
-RUN useradd -m -s /bin/bash jupyter
+# jovyan is our user
+RUN useradd -m -s /bin/bash jovyan
 
-USER jupyter
+USER jovyan
 RUN ipython profile create
 
 # Workaround for issue with ADD permissions
 USER root
+ADD ipython_notebook_config.py /home/jovyan/.ipython/profile_default/
 
 # All the additions to give to the created user.
 ADD Julia/ /srv/Julia/
 ADD R/ /srv/R/
-ADD notebooks/ /home/jupyter/
+ADD notebooks/ /home/jovyan/
 
 # Add Google Analytics templates
 ADD ga/ /srv/ga/
 ADD static/ipynblogo.png /srv/ipython/IPython/html/static/base/images/ipynblogo.png
 
 RUN chmod a+rX /srv/R/ -R
-RUN chown jupyter:jupyter /home/jupyter -R
+RUN chown jovyan:jovyan /home/jovyan -R
 
 ## Final actions for user
 
-USER jupyter
-ENV HOME /home/jupyter
+USER jovyan
+ENV HOME /home/jovyan
 ENV SHELL /bin/bash
-ENV USER jupyter
+ENV USER jovyan
 
-WORKDIR /home/jupyter/
+WORKDIR /home/jovyan/
 
 # IJulia installation
 RUN julia -e 'Pkg.add("IJulia")'
@@ -64,23 +65,23 @@ RUN julia -e 'Pkg.add("IJulia")'
 RUN julia /srv/Julia/install_pkgs.jl
 
 # Install kernel directly (for now)
-RUN mkdir -p /home/jupyter/.ipython/kernels/julia/
-RUN cp /srv/Julia/kernel.json /home/jupyter/.ipython/kernels/julia/kernel.json
+RUN mkdir -p /home/jovyan/.ipython/kernels/julia/
+RUN cp /srv/Julia/kernel.json /home/jovyan/.ipython/kernels/julia/kernel.json
 
 # R installation
 # Copying files instead of adding due to current permissions issue with ADD
-RUN cp /srv/R/Renviron /home/jupyter/.Renviron
-RUN cp /srv/R/Rprofile /home/jupyter/.Rprofile
-RUN mkdir /home/jupyter/.R/
+RUN cp /srv/R/Renviron /home/jovyan/.Renviron
+RUN cp /srv/R/Rprofile /home/jovyan/.Rprofile
+RUN mkdir /home/jovyan/.R/
 
 RUN cat /srv/R/install_kernel.R | R --no-save
 RUN cat /srv/R/install_pkgs.R   | R --no-save
 
 # Example notebooks 
-RUN cp -r /srv/ipython/examples /home/jupyter/ipython_examples
+RUN cp -r /srv/ipython/examples /home/jovyan/ipython_examples
 
-RUN chown -R jupyter:jupyter /home/jupyter
+RUN chown -R jovyan:jovyan /home/jovyan
 
 RUN find . -name '*.ipynb' -exec ipython trust {} \;
 
-CMD ipython3 notebook --no-browser --port 8888 --ip=0.0.0.0 --NotebookApp.base_url=/$RAND_BASE --NotebookApp.tornado_settings="{'template_path':['/srv/ga/', '/srv/ipython/IPython/html', '/srv/ipython/IPython/html/templates']}"
+CMD ipython3 notebook
