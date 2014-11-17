@@ -4,8 +4,6 @@
 
 Launches "temporary" Jupyter notebook servers.
 
-:warning: Be mindful of what box you're subdividing resources across. :warning:
-
 #### Quick start
 
 Get Docker, then:
@@ -13,11 +11,13 @@ Get Docker, then:
 ```
 docker pull jupyter/minimal
 export TOKEN=$( head -c 30 /dev/urandom | xxd -p )
-docker run --net=host -d -e CONFIGPROXY_AUTH_TOKEN=$TOKEN jupyter/configurable-http-proxy --default-target http://127.0.0.1:9999
-docker run --net=host -d -e CONFIGPROXY_AUTH_TOKEN=$TOKEN -v /var/run/docker.sock:/docker.sock jupyter/tmpnb
+docker run --net=host -d -e CONFIGPROXY_AUTH_TOKEN=$TOKEN --name=proxy jupyter/configurable-http-proxy --default-target http://127.0.0.1:9999
+docker run --net=host -d -e CONFIGPROXY_AUTH_TOKEN=$TOKEN --name=tmpnb -v /var/run/docker.sock:/docker.sock jupyter/tmpnb
 ```
 
 BAM! Visit your host on port 8000 and you have a working tmpnb setup.
+
+If it didn't come up, try running `docker ps -a` and `docker logs tmpnb` to help diagnose issues.
 
 #### Advanced configuration
 
