@@ -101,7 +101,6 @@ def main():
         'ipython3 notebook --no-browser'
         ' --port {port} --ip=0.0.0.0'
         ' --NotebookApp.base_url=/{base_path}'
-        ' --NotebookApp.tornado_settings=\'{{ \"template_path\": [ \"/srv/ga\", \"/srv/ipython/IPython/html\", \"/srv/ipython/IPython/html/templates\" ] }}\''
     )
 
     tornado.options.define('command', default=command_default,
@@ -119,7 +118,7 @@ def main():
     tornado.options.define('cpu_shares', default=None,
         help="Limit CPU shares, per container"
     )
-    tornado.options.define('image', default="jupyter/demo",
+    tornado.options.define('image', default="jupyter/minimal",
         help="Docker container to spawn for new users. Must be on the system already"
     )
     tornado.options.define('docker_version', default="1.13",
@@ -128,7 +127,7 @@ def main():
     tornado.options.define('redirect_uri', default="/tree",
         help="URI to redirect users to upon initial notebook launch"
     )
-    tornado.options.define('pool_size', default=128,
+    tornado.options.define('pool_size', default=10,
         help="Capacity for containers on this system. Will be prelaunched at startup."
     )
     tornado.options.define('pool_name', default=None,
