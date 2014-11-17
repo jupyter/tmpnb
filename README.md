@@ -2,19 +2,16 @@
 
 [![Gitter](https://badges.gitter.im/Join Chat.svg)](https://gitter.im/jupyter/tmpnb?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
-Launches "temporary" IPython notebook servers.
+Launches "temporary" Jupyter notebook servers.
 
-#### :warning: Hardware assumptions :warning:
-
-* Reasonably fast IOPS (SSDs, PCIe cards)
-* Enough CPUs and memory for all the users (`mem_limit`*`pool_size` < Available RAM)
+:warning: Be mindful of what box you're subdividing resources across. :warning:
 
 #### Quick start
 
 Get Docker, then:
 
 ```
-docker pull jupyter/demo
+docker pull jupyter/minimal
 export TOKEN=$( head -c 30 /dev/urandom | xxd -p )
 docker run --net=host -d -e CONFIGPROXY_AUTH_TOKEN=$TOKEN jupyter/configurable-http-proxy --default-target http://127.0.0.1:9999
 docker run --net=host -d -e CONFIGPROXY_AUTH_TOKEN=$TOKEN -v /var/run/docker.sock:/docker.sock jupyter/tmpnb
@@ -27,7 +24,48 @@ BAM! Visit your host on port 8000 and you have a working tmpnb setup.
 If you need to set the `docker-version` or other options, they can be passed to `jupyter/tmpnb` directly:
 
 ```
-docker run --net=host -d -e CONFIGPROXY_AUTH_TOKEN=$TOKEN -v /var/run/docker.sock:/docker.sock jupyter/tmpnb python orchestrate.py --cull-timeout=60 --docker-version="1.13" --command="ipython3 notebook --NotebookApp.base_url={base_path} --ip=0.0.0.0 --port {port}"
+docker run --net=host -d -e CONFIGPROXY_AUTH_TOKEN=$TOKEN -v /var/run/docker.sock:/docker.sock jupyter/tmpnb python orchestrate.py --cull-timeout=60 --docker-version="1.13" --command="ipython3 notebook --NotebookApp.base_url={base_path}" --ip=0.0.0.0 --port {port}"
+```
+
+#### Options
+
+```
+Usage: orchestrate.py [OPTIONS]
+
+Options:
+
+  --command                        command to run when booting the image. A
+                                   placeholder for base_path should be
+                                   provided. Example: "ipython3 notebook
+                                   --NotebookApp.base_url=/{base_path}"
+  --container_ip                   IP address for containers to bind to
+                                   (default 127.0.0.1)
+  --container_port                 Port for containers to bind to (default
+                                   8888)
+  --cpu_shares                     Limit CPU shares, per container
+  --cull_period                    Interval (s) for culling idle containers.
+                                   (default 600)
+  --cull_timeout                   Timeout (s) for culling idle containers.
+                                   (default 3600)
+  --docker_version                 Version of the Docker API to use (default
+                                   1.13)
+  --help                           show this help information
+  --image                          Docker container to spawn for new users.
+                                   Must be on the system already (default
+                                   jupyter/demo)
+  --max_dock_workers               Maximum number of docker workers (default 2)
+  --mem_limit                      Limit on Memory, per container (default
+                                   512m)
+  --pool_name                      Container name fragment used to identity
+                                   containers that belong to this instance.
+  --pool_size                      Capacity for containers on this system. Will
+                                   be prelaunched at startup. (default 128)
+  --port                           port for the main server to listen on
+                                   (default 9999)
+  --redirect_uri                   URI to redirect users to upon initial
+                                   notebook launch (default /tree)
+  --static_files                   Static files to extract from the initial
+                                   container launch
 ```
 
 #### Development
