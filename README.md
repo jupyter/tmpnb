@@ -52,7 +52,7 @@ Options:
   --help                           show this help information
   --image                          Docker container to spawn for new users.
                                    Must be on the system already (default
-                                   jupyter/demo)
+                                   jupyter/minimal)
   --max_dock_workers               Maximum number of docker workers (default 2)
   --mem_limit                      Limit on Memory, per container (default
                                    512m)
