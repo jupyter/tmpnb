@@ -10,10 +10,10 @@ tmpnb-image: Dockerfile
 images: tmpnb-image demo-image minimal-image
 
 minimal-image:
-	docker build -t jupyter/minimal images/minimal
+	docker pull jupyter/minimal
 
 demo-image:
-	docker build -t jupyter/demo images/demo
+	docker pull jupyter/demo
 
 proxy-image:
 	docker pull jupyter/configurable-http-proxy
@@ -44,4 +44,4 @@ log-tmpnb:
 log-proxy:
 	docker logs -f proxy
 
-.PHONY: cleanup-images
+.PHONY: cleanup
