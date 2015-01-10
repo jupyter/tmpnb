@@ -28,9 +28,8 @@ def sample_with_replacement(a, size=12):
     return "".join([random.choice(a) for x in range(size)])
 
 
-def user_prefix():
-    '''Generate a fresh user- path for a new container.'''
-    return "user/" + sample_with_replacement(string.ascii_letters + string.digits)
+def new_user():
+    return sample_with_replacement(string.ascii_letters + string.digits)
 
 
 PooledContainer = namedtuple('PooledContainer', ['id', 'path'])
@@ -87,7 +86,7 @@ class SpawnPool():
         return self.available.pop()
 
     @gen.coroutine
-    def adhoc(self, path):
+    def adhoc(self, user):
         '''Launch a container with a fixed path by taking the place of an existing container from
         the pool.'''
 
@@ -95,7 +94,7 @@ class SpawnPool():
         app_log.debug("Discarding container [%s] to create an ad-hoc replacement.", to_release)
         yield self.release(to_release, False)
 
-        launched = yield self._launch_container(path=path, enpool=False)
+        launched = yield self._launch_container(user=user, enpool=False)
         raise gen.Return(launched)
 
     @gen.coroutine
@@ -205,16 +204,18 @@ class SpawnPool():
             self._heart_beating = False
 
     @gen.coroutine
-    def _launch_container(self, path=None, enpool=True):
+    def _launch_container(self, user=None, enpool=True):
         '''Launch a new notebook server in a fresh container, register it with the proxy, and
         add it to the pool.'''
 
-        if path is None:
-            path = user_prefix()
+        if user is None:
+            user = new_user()
+
+        path = "user/" + user
 
         # This must match self.container_name_pattern or Bad Things will happen.
         # You don't want Bad Things to happen, do you?
-        container_name = 'tmp.{}.{}'.format(self.pool_name, path)
+        container_name = 'tmp.{}.{}'.format(self.pool_name, user)
         if not self.container_name_pattern.match(container_name):
             raise Exception("[{}] does not match [{}]!".format(container_name,
                 self.container_name_pattern.pattern))
