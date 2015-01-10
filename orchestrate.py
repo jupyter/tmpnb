@@ -142,8 +142,8 @@ def main():
 
     handlers = [
         (r"/", LoadingHandler),
-        (r"/spawn/?(/user-\w+(?:/.*)?)?", SpawnHandler),
-        (r"/(user-\w+)(?:/.*)?", LoadingHandler),
+        (r"/spawn/?(/user/\w+(?:/.*)?)?", SpawnHandler),
+        (r"/(user/\w+)(?:/.*)?", LoadingHandler),
         (r"/stats", StatsHandler),
     ]
 

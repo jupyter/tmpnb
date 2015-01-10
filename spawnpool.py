@@ -30,7 +30,7 @@ def sample_with_replacement(a, size=12):
 
 def user_prefix():
     '''Generate a fresh user- path for a new container.'''
-    return "user-" + sample_with_replacement(string.ascii_letters + string.digits)
+    return "user/" + sample_with_replacement(string.ascii_letters + string.digits)
 
 
 PooledContainer = namedtuple('PooledContainer', ['id', 'path'])
