@@ -64,7 +64,7 @@ class SpawnPool():
         self.max_age = max_age
 
         self.pool_name = pool_name
-        self.name_pattern = re.compile('tmp\.([^.]+)\.(.+)\Z')
+        self.container_name_pattern = re.compile('tmp\.([^.]+)\.(.+)\Z')
 
         self.proxy_endpoint = proxy_endpoint
         self.proxy_token = proxy_token
@@ -117,7 +117,7 @@ class SpawnPool():
             return
 
         if replace_if_room:
-            running = yield self.spawner.list_notebook_servers(self.name_pattern, all=False)
+            running = yield self.spawner.list_notebook_servers(self.container_name_pattern, all=False)
             if len(running) + 1 <= self.capacity:
                 app_log.debug("Launching a replacement container.")
                 yield self._launch_container()
@@ -143,7 +143,7 @@ class SpawnPool():
 
             diagnosis = Diagnosis(self.max_age,
                                   self.spawner,
-                                  self.name_pattern,
+                                  self.container_name_pattern,
                                   self.proxy_endpoint,
                                   self.proxy_token)
             yield diagnosis.observe()
@@ -212,18 +212,20 @@ class SpawnPool():
         if path is None:
             path = user_prefix()
 
-        # This must match self.name_pattern or Bad Things will happen.
+        # This must match self.container_name_pattern or Bad Things will happen.
         # You don't want Bad Things to happen, do you?
-        name = 'tmp.{}.{}'.format(self.pool_name, path)
-        if not self.name_pattern.match(name):
-            raise Exception("[{}] does not match [{}]!".format(name, self.name_pattern.pattern))
+        container_name = 'tmp.{}.{}'.format(self.pool_name, path)
+        if not self.container_name_pattern.match(container_name):
+            raise Exception("[{}] does not match [{}]!".format(container_name,
+                self.container_name_pattern.pattern))
 
-        app_log.debug("Launching new notebook server [%s] at path [%s].", name, path)
+        app_log.debug("Launching new notebook server [%s] at path [%s].",
+                container_name, path)
         create_result = yield self.spawner.create_notebook_server(base_path=path,
-                                                                  name=name,
+                                                                  container_name=container_name,
                                                                   container_config=self.container_config)
         container_id, host_ip, host_port = create_result
-        app_log.debug("Created notebook server [%s] for path [%s] at [%s:%s]", name, path, host_ip, host_port)
+        app_log.debug("Created notebook server [%s] for path [%s] at [%s:%s]", container_name, path, host_ip, host_port)
 
         # Wait for the server to launch within the container before adding it to the pool or
         # serving it to a user.
