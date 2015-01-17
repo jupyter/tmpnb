@@ -110,6 +110,9 @@ def main():
     tornado.options.define('port', default=9999,
         help="port for the main server to listen on"
     )
+    tornado.options.define('ip', default=None,
+        help="ip for the main server to listen on [default: all interfaces]"
+    )
     tornado.options.define('max_dock_workers', default=2,
         help="Maximum number of docker workers"
     )
@@ -218,10 +221,10 @@ def main():
                  opts.cull_period)
     culler = tornado.ioloop.PeriodicCallback(pool.heartbeat, cull_ms)
     culler.start()
-
-    app_log.info("Listening on {}".format(opts.port))
+    
+    app_log.info("Listening on {}:{}".format(opts.ip or '*', opts.port))
     application = tornado.web.Application(handlers, **settings)
-    application.listen(opts.port)
+    application.listen(opts.port, opts.ip)
     ioloop.start()
 
 if __name__ == "__main__":
