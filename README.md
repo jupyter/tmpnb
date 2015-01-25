@@ -80,11 +80,16 @@ Options:
 
 #### Development
 
+*WARNING* The `Makefile` used in the commands below assume your
+containers can be deleted.  Please work on an isolated machine and read
+the `cleanup` target in the `Makefile` prior to executing.
+
 ```
 git clone https://github.com/jupyter/tmpnb.git
 cd tmpnb
 
 # Kick off the proxy and run the server.
 # Runs on all interfaces on port 8000 by default.
+# NOTE: stops and deletes all containers
 make dev
 ```
