@@ -1,4 +1,4 @@
-## tmpnb
+## tmpnb, the temporary notebook service
 
 [![Gitter](https://badges.gitter.im/Join Chat.svg)](https://gitter.im/jupyter/tmpnb?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
@@ -6,7 +6,9 @@ Launches "temporary" Jupyter notebook servers.
 
 ![tmpnb architecture](https://cloud.githubusercontent.com/assets/836375/5909206/f0b156da-a573-11e4-8e3f-f65dfe9d23b8.png)
 
-tmpnb, the temporary notebook service, launches a docker containers for each user that requests the base path.
+tmpnb launches a docker container for each user that requests one. In practice, this gets used to [provide temporary notebooks](https://tmpnb.org), demo the IPython notebook as part of [a Nature article](http://www.nature.com/news/interactive-notebooks-sharing-the-code-1.16261), or even [provide Jupyter kernels for publications](http://odewahn.github.io/publishing-workflows-for-jupyter/#1).
+
+People have used it at user groups, meetups, and workshops to provide temporary access to a full system without any installation whatsoever.
 
 #### Quick start
 
