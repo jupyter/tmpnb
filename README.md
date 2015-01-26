@@ -4,6 +4,10 @@
 
 Launches "temporary" Jupyter notebook servers.
 
+![tmpnb architecture](https://cloud.githubusercontent.com/assets/836375/5909206/f0b156da-a573-11e4-8e3f-f65dfe9d23b8.png)
+
+tmpnb, the temporary notebook service, launches a docker containers for each user that requests the base path.
+
 #### Quick start
 
 Get Docker, then:
