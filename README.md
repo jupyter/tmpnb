@@ -4,7 +4,7 @@
 
 Launches "temporary" Jupyter notebook servers.
 
-![tmpnb architecture](https://cloud.githubusercontent.com/assets/836375/5909206/f0b156da-a573-11e4-8e3f-f65dfe9d23b8.png)
+![tmpnb architecture](https://cloud.githubusercontent.com/assets/836375/5911140/c53e3978-a587-11e4-86a5-695469ef23a5.png)
 
 tmpnb launches a docker container for each user that requests one. In practice, this gets used to [provide temporary notebooks](https://tmpnb.org), demo the IPython notebook as part of [a Nature article](http://www.nature.com/news/interactive-notebooks-sharing-the-code-1.16261), or even [provide Jupyter kernels for publications](http://odewahn.github.io/publishing-workflows-for-jupyter/#1).
 
