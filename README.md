@@ -21,7 +21,11 @@ docker run --net=host -d -e CONFIGPROXY_AUTH_TOKEN=$TOKEN --name=proxy jupyter/c
 docker run --net=host -d -e CONFIGPROXY_AUTH_TOKEN=$TOKEN --name=tmpnb -v /var/run/docker.sock:/docker.sock jupyter/tmpnb
 ```
 
-BAM! Visit your host on port 8000 and you have a working tmpnb setup.
+BAM! Visit your host on port 8000 and you have a working tmpnb setup. Note, if you are using boot2docker, then you can find your docker host's ip address by running the following command in your console:
+
+```
+boot2docker ip
+```
 
 If it didn't come up, try running `docker ps -a` and `docker logs tmpnb` to help diagnose issues.
 
