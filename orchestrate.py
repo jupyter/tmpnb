@@ -15,7 +15,6 @@ from tornado.log import app_log
 from tornado.web import RequestHandler
 
 from tornado import gen, web
-from tornado import ioloop
 
 import dockworker
 import spawnpool
