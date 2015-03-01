@@ -136,7 +136,12 @@ class DockerSpawner():
                                             trunc=False)
 
         def name_matches(container):
-            for name in container['Names']:
+            try:
+                names = container['Names']
+            except Exception:
+                app_log.warn("Invalid container: %r", container)
+                return False
+            for name in names:
                 if pool_regex.search(name):
                     return True
             return False
