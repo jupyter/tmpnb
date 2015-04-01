@@ -22,6 +22,8 @@ import spawnpool
 
 class LoadingHandler(RequestHandler):
     def get(self, path=None):
+        if self.settings.allow_origin:
+            self.set_header("Access-Control-Allow-Origin", allow_origin)
         self.render("loading.html", path=path)
 
 
@@ -44,7 +46,8 @@ class SpawnHandler(RequestHandler):
     @gen.coroutine
     def get(self, path=None):
         '''Spawns a brand new server'''
-
+        if self.settings.allow_origin:
+            self.set_header("Access-Control-Allow-Origin", allow_origin)
         try:
             if path is None:
                 # No path. Assign a prelaunched container from the pool and redirect to it.
@@ -82,6 +85,7 @@ class SpawnHandler(RequestHandler):
     @property
     def redirect_uri(self):
         return self.settings['redirect_uri']
+
 
 def main():
     tornado.options.define('cull_period', default=600,
@@ -138,6 +142,9 @@ def main():
     )
     tornado.options.define('static_files', default=None,
         help="Static files to extract from the initial container launch"
+    )
+    tornado.options.define('allow_origin', default=False,
+        help="Set the Access-Control-Allow-Origin header. Use '*' to allow any origin to access."
     )
 
     tornado.options.parse_command_line()
@@ -196,6 +203,7 @@ def main():
         xsrf_cookies=True,
         debug=True,
         cull_period=opts.cull_period,
+        allow_origin=opts.allow_origin,
         spawner=spawner,
         pool=pool,
         autoescape=None,
