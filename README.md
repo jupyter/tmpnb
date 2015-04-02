@@ -53,7 +53,9 @@ docker run --net=host -d -e CONFIGPROXY_AUTH_TOKEN=$TOKEN \
 Usage: orchestrate.py [OPTIONS]
 
 Options:
-
+  --allow_origin                   Set the Access-Control-Allow-Origin header.
+                                   Use '*' to allow any origin to access.
+                                   (default None)
   --command                        command to run when booting the image. A
                                    placeholder for base_path should be
                                    provided. Example: "ipython3 notebook
