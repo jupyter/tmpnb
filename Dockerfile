@@ -6,11 +6,19 @@ RUN wget https://raw.github.com/pypa/pip/master/contrib/get-pip.py
 RUN python get-pip.py
 RUN pip install tornado docker-py pycurl futures
 
-ADD . /srv/tmpnb/
-WORKDIR /srv/tmpnb/
+# ADD . /srv/tmpnb/
+# WORKDIR /srv/tmpnb/
+
+# For Dev
+ADD requirements.txt /srv/requirements.txt
+# ADD requirements.txt /srv/requirements.txt
+WORKDIR /srv
 
 ENV DOCKER_HOST unix://docker.sock
 
 RUN pip install -r requirements.txt
 
-CMD python orchestrate.py
+# CMD python orchestrate.py
+
+# For Dev
+CMD python tmpnb/orchestrate.py
