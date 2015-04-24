@@ -22,7 +22,13 @@ import spawnpool
 
 class LoadingHandler(RequestHandler):
     def get(self, path=None):
+        if self.allow_origin:
+            self.set_header("Access-Control-Allow-Origin", self.allow_origin)
         self.render("loading.html", path=path)
+    
+    @property
+    def allow_origin(self):
+        return self.settings['allow_origin']
 
 
 class StatsHandler(RequestHandler):
@@ -44,7 +50,8 @@ class SpawnHandler(RequestHandler):
     @gen.coroutine
     def get(self, path=None):
         '''Spawns a brand new server'''
-
+        if self.allow_origin:
+            self.set_header("Access-Control-Allow-Origin", self.allow_origin)
         try:
             if path is None:
                 # No path. Assign a prelaunched container from the pool and redirect to it.
@@ -62,7 +69,6 @@ class SpawnHandler(RequestHandler):
                 # This takes longer, but is necessary to support ad-hoc containers
                 yield self.pool.adhoc(user)
 
-                app_log.info("Allocated ad-hoc container for [%s].", user)
                 url = path
 
             app_log.debug("Redirecting [%s] -> [%s].", self.request.path, url)
@@ -82,6 +88,11 @@ class SpawnHandler(RequestHandler):
     @property
     def redirect_uri(self):
         return self.settings['redirect_uri']
+
+    @property
+    def allow_origin(self):
+        return self.settings['allow_origin']
+
 
 def main():
     tornado.options.define('cull_period', default=600,
@@ -138,6 +149,9 @@ def main():
     )
     tornado.options.define('static_files', default=None,
         help="Static files to extract from the initial container launch"
+    )
+    tornado.options.define('allow_origin', default=None,
+        help="Set the Access-Control-Allow-Origin header. Use '*' to allow any origin to access."
     )
 
     tornado.options.parse_command_line()
@@ -196,6 +210,7 @@ def main():
         xsrf_cookies=True,
         debug=True,
         cull_period=opts.cull_period,
+        allow_origin=opts.allow_origin,
         spawner=spawner,
         pool=pool,
         autoescape=None,
