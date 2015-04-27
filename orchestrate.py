@@ -78,7 +78,8 @@ class SpawnHandler(RequestHandler):
 
         except spawnpool.EmptyPoolError:
             app_log.warning("The container pool is empty!")
-            self.render("full.html", cull_period=self.cull_period)
+            self.write({'status': 'full'})
+            # self.render("full.html", cull_period=self.cull_period)
 
     @property
     def pool(self):
