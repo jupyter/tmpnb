@@ -70,9 +70,12 @@ class SpawnHandler(RequestHandler):
                 yield self.pool.adhoc(user)
 
                 url = path
-
             app_log.debug("Redirecting [%s] -> [%s].", self.request.path, url)
-            self.redirect(url, permanent=False)
+            # Instead of redirecting, lets just send back the url
+            # Because CORS with redirects is hellish and doesn't work cross browsers
+            self.write({'url': url})
+            # self.redirect(url, permanent=False)
+
         except spawnpool.EmptyPoolError:
             app_log.warning("The container pool is empty!")
             self.render("full.html", cull_period=self.cull_period)
