@@ -39,11 +39,17 @@ class StatsHandler(RequestHandler):
                 'capacity': self.pool.capacity,
                 'version': '0.0.1-dev',
         }
+        if self.allow_origin:
+            self.set_header("Access-Control-Allow-Origin", self.allow_origin)
         self.write(response)
 
     @property
     def pool(self):
         return self.settings['pool']
+
+    @property
+    def allow_origin(self):
+        return self.settings['allow_origin']
 
 class SpawnHandler(RequestHandler):
 
