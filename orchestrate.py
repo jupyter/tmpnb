@@ -100,6 +100,31 @@ class SpawnHandler(RequestHandler):
         return self.settings['allow_origin']
 
 
+class APISpawnHandler(RequestHandler):
+
+    @gen.coroutine
+    def post(self):
+        '''Spawns a brand new server programatically'''
+        if self.allow_origin:
+            self.set_header("Access-Control-Allow-Origin", self.allow_origin)
+        try:
+            url = self.pool.acquire().path
+            app_log.info("Allocated [%s] from the pool.", container_path)
+            app_log.debug("Responding with container url [%s].", url)
+            self.write({'url': url})
+        except spawnpool.EmptyPoolError:
+            app_log.warning("The container pool is empty!")
+            self.write({'status': 'full'})
+
+    @property
+    def pool(self):
+        return self.settings['pool']
+
+    @property
+    def allow_origin(self):
+        return self.settings['allow_origin']
+
+
 def main():
     tornado.options.define('cull_period', default=600,
         help="Interval (s) for culling idle containers."
@@ -166,6 +191,7 @@ def main():
     handlers = [
         (r"/", LoadingHandler),
         (r"/spawn/?(/user/\w+(?:/.*)?)?", SpawnHandler),
+        (r"/api/spawn/", APISpawnHandler),
         (r"/(user/\w+)(?:/.*)?", LoadingHandler),
         (r"/stats", StatsHandler),
     ]
