@@ -1,6 +1,8 @@
+import itertools
+import re
+
 from concurrent.futures import ThreadPoolExecutor
 from collections import namedtuple
-import re
 
 import docker
 
@@ -8,10 +10,52 @@ from tornado.log import app_log
 
 from tornado import gen, web
 
+class ContainerConfig():
+    def __init__(self, image='jupyter/demo',
+                 mem_limit='512m',
+                 cpu_shares=None,
+                 command="ipython notebook --base-url={base_url}",
+                 container_ip="127.0.0.1",
+                 container_port="8888",
+                 volumes=None,
+                 read_only_volumes=None):
 
-ContainerConfig = namedtuple('ContainerConfig', [
-    'image', 'command', 'mem_limit', 'cpu_shares', 'container_ip', 'container_port'
-])
+        self.image = image
+        self.mem_limit = mem_limit
+        self.cpu_shares = cpu_shares
+        self.command = command
+        self.container_ip = container_ip
+        self.container_port = container_port
+
+        if(volumes is None):
+            volumes = {}
+        if(read_only_volumes is None):
+            read_only_volumes = {}
+        
+        self.volumes = volumes
+        self.read_only_volumes = read_only_volumes
+
+        self.volume_mount_points = list(
+                itertools.chain(
+                    self.volumes.values(),
+                    self.read_only_volumes.values()
+                )
+        )
+
+        binds = {}
+        binds.update({
+            host_fs_path: {'bind': container_fs_path, 'ro': False}
+            for host_fs_path, container_fs_path in self.volumes.items()
+        
+        })
+        binds.update({
+            host_fs_path: {'bind': container_fs_path, 'ro': True}
+            for host_fs_path, container_fs_path in self.read_only_volumes.items()
+        
+        })
+
+        self.volume_binds = binds
+        
 
 # Number of times to retry API calls before giving up.
 RETRIES = 5
