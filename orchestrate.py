@@ -109,7 +109,7 @@ class APISpawnHandler(RequestHandler):
             self.set_header("Access-Control-Allow-Origin", self.allow_origin)
         try:
             url = self.pool.acquire().path
-            app_log.info("Allocated [%s] from the pool.", container_path)
+            app_log.info("Allocated [%s] from the pool.", url)
             app_log.debug("Responding with container url [%s].", url)
             self.write({'url': url})
         except spawnpool.EmptyPoolError:
@@ -239,7 +239,7 @@ def main():
     settings = dict(
         static_path=static_path,
         cookie_secret=uuid.uuid4(),
-        xsrf_cookies=True,
+        xsrf_cookies=False,
         debug=True,
         cull_period=opts.cull_period,
         allow_origin=opts.allow_origin,
