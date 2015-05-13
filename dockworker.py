@@ -1,13 +1,12 @@
 from concurrent.futures import ThreadPoolExecutor
 from collections import namedtuple
 import re
+import os
 
 import docker
 
 from tornado.log import app_log
-
 from tornado import gen, web
-
 
 ContainerConfig = namedtuple('ContainerConfig', [
     'image', 'command', 'mem_limit', 'cpu_shares', 'container_ip', 'container_port'
@@ -45,13 +44,31 @@ class AsyncDockerClient():
 
 
 class DockerSpawner():
+
     def __init__(self,
                  docker_host='unix://var/run/docker.sock',
                  version='1.12',
                  timeout=30,
-                 max_workers=64):
+                 max_workers=64,
+                 docker_cert_path=None):
+
+
+        tls_config=None
+        if docker_cert_path:
+
+            tls_cert = os.path.join(docker_cert_path, 'cert.pem')
+            tls_key = os.path.join(docker_cert_path, 'key.pem')
+            tls_ca = os.path.join(docker_cert_path, 'ca.pem')
+            tls_verify = True
+
+            tls_client = (tls_cert, tls_key)
+
+            tls_config = docker.tls.TLSConfig(client_cert=tls_client,
+                                              ca_cert=tls_ca,
+                                              verify=tls_verify)
 
         blocking_docker_client = docker.Client(base_url=docker_host,
+                                               tls=tls_config,
                                                version=version,
                                                timeout=timeout)
 
