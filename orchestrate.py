@@ -109,7 +109,7 @@ def main():
     )
 
     command_default = (
-        'ipython3 notebook --no-browser'
+        'ipython notebook --no-browser'
         ' --port {port} --ip=0.0.0.0'
         ' --NotebookApp.base_url=/{base_path}'
     )
