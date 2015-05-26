@@ -81,7 +81,7 @@ Options:
   --pool_name                      Container name fragment used to identity
                                    containers that belong to this instance.
   --pool_size                      Capacity for containers on this system. Will
-                                   be prelaunched at startup. (default 128)
+                                   be prelaunched at startup. (default 10)
   --port                           port for the main server to listen on
                                    (default 9999)
   --redirect_uri                   URI to redirect users to upon initial
