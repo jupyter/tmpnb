@@ -39,11 +39,17 @@ class StatsHandler(RequestHandler):
                 'capacity': self.pool.capacity,
                 'version': '0.0.1-dev',
         }
+        if self.allow_origin:
+            self.set_header("Access-Control-Allow-Origin", self.allow_origin)
         self.write(response)
 
     @property
     def pool(self):
         return self.settings['pool']
+
+    @property
+    def allow_origin(self):
+        return self.settings['allow_origin']
 
 class SpawnHandler(RequestHandler):
 
@@ -88,6 +94,31 @@ class SpawnHandler(RequestHandler):
     @property
     def redirect_uri(self):
         return self.settings['redirect_uri']
+
+    @property
+    def allow_origin(self):
+        return self.settings['allow_origin']
+
+
+class APISpawnHandler(RequestHandler):
+
+    @gen.coroutine
+    def post(self):
+        '''Spawns a brand new server programatically'''
+        if self.allow_origin:
+            self.set_header("Access-Control-Allow-Origin", self.allow_origin)
+        try:
+            url = self.pool.acquire().path
+            app_log.info("Allocated [%s] from the pool.", url)
+            app_log.debug("Responding with container url [%s].", url)
+            self.write({'url': url})
+        except spawnpool.EmptyPoolError:
+            app_log.warning("The container pool is empty!")
+            self.write({'status': 'full'})
+
+    @property
+    def pool(self):
+        return self.settings['pool']
 
     @property
     def allow_origin(self):
@@ -160,6 +191,7 @@ def main():
     handlers = [
         (r"/", LoadingHandler),
         (r"/spawn/?(/user/\w+(?:/.*)?)?", SpawnHandler),
+        (r"/api/spawn/", APISpawnHandler),
         (r"/(user/\w+)(?:/.*)?", LoadingHandler),
         (r"/stats", StatsHandler),
     ]
@@ -207,7 +239,7 @@ def main():
     settings = dict(
         static_path=static_path,
         cookie_secret=uuid.uuid4(),
-        xsrf_cookies=True,
+        xsrf_cookies=False,
         debug=True,
         cull_period=opts.cull_period,
         allow_origin=opts.allow_origin,
