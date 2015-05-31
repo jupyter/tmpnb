@@ -219,6 +219,7 @@ def main():
                                        version=opts.docker_version,
                                        timeout=30,
                                        max_workers=opts.max_dock_workers,
+                                       docker_cert_path=os.environ.get('DOCKER_CERT_PATH')
     )
 
     static_path = os.path.join(os.path.dirname(__file__), "static")
