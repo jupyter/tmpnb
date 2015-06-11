@@ -138,6 +138,9 @@ class DockerSpawner():
         def name_matches(container):
             try:
                 names = container['Names']
+                if names is None:
+                  app_log.warn("Docker API returned null Names, ignoring")
+                  return False
             except Exception:
                 app_log.warn("Invalid container: %r", container)
                 return False
