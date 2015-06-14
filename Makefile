@@ -2,7 +2,7 @@
 CULL_PERIOD ?= 30
 CULL_TIMEOUT ?= 60
 LOGGING ?= debug
-POOL_SIZE ?= 3
+POOL_SIZE ?= 5
 
 tmpnb-image: Dockerfile
 	docker build -t jupyter/tmpnb .

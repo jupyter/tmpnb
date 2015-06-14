@@ -3,11 +3,10 @@ from collections import namedtuple
 import re
 
 import docker
-
-from tornado.log import app_log
+import requests
 
 from tornado import gen, web
-
+from tornado.log import app_log
 
 ContainerConfig = namedtuple('ContainerConfig', [
     'image', 'command', 'mem_limit', 'cpu_shares', 'container_ip', 'container_port'
@@ -165,7 +164,7 @@ class DockerSpawner():
                 del kwargs['max_tries']
             result = yield fn(*args, **kwargs)
             raise gen.Return(result)
-        except docker.errors.APIError as e:
+        except (docker.errors.APIError, requests.exceptions.ReadTimeout) as e:
             app_log.error("Encountered a Docker error (%i retries remain): %s", max_tries, e)
             if max_tries > 0:
                 kwargs['max_tries'] = max_tries - 1
