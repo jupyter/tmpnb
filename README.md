@@ -34,7 +34,7 @@ If it didn't come up, try running `docker ps -a` and `docker logs tmpnb` to help
 If you need to set the `docker-version` or other options, they can be passed to `jupyter/tmpnb` directly:
 
 ```
-docker run --net=host -d -e CONFIGPROXY_AUTH_TOKEN=$TOKEN -v /var/run/docker.sock:/docker.sock jupyter/tmpnb python orchestrate.py --cull-timeout=60 --docker-version="1.13" --command="ipython3 notebook --NotebookApp.base_url={base_path} --ip=0.0.0.0 --port {port}"
+docker run --net=host -d -e CONFIGPROXY_AUTH_TOKEN=$TOKEN -v /var/run/docker.sock:/docker.sock jupyter/tmpnb python orchestrate.py --cull-timeout=60 --docker-version="1.13" --command="ipython notebook --NotebookApp.base_url={base_path} --ip=0.0.0.0 --port {port}"
 ```
 
 #### Launching with *your own* Docker images
@@ -44,7 +44,7 @@ tmpnb can run any Docker container provided by the `--image` option, so long as 
 ```
 docker run --net=host -d -e CONFIGPROXY_AUTH_TOKEN=$TOKEN \
            -v /var/run/docker.sock:/docker.sock \
-           jupyter/tmpnb python orchestrate.py --image='jupyter/demo' --command="ipython3 notebook --NotebookApp.base_url={base_path} --ip=0.0.0.0 --port {port}"
+           jupyter/tmpnb python orchestrate.py --image='jupyter/demo' --command="ipython notebook --NotebookApp.base_url={base_path} --ip=0.0.0.0 --port {port}"
 ```
 
 #### Options
@@ -58,7 +58,7 @@ Options:
                                    (default None)
   --command                        command to run when booting the image. A
                                    placeholder for base_path should be
-                                   provided. Example: "ipython3 notebook
+                                   provided. Example: "ipython notebook
                                    --NotebookApp.base_url=/{base_path}"
   --container_ip                   IP address for containers to bind to
                                    (default 127.0.0.1)
