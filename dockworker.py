@@ -72,7 +72,7 @@ class DockerSpawner():
 
         # Assumes that the container_config.command is of a format like:
         #
-        #  ipython3 notebook --no-browser --port {port} --ip=0.0.0.0
+        #  ipython notebook --no-browser --port {port} --ip=0.0.0.0
         #    --NotebookApp.base_path=/{base_path}
         #    --NotebookApp.tornado_settings=\"{ \"template_path\": [ \"/srv/ga\",
         #    \"/srv/ipython/IPython/html\",
