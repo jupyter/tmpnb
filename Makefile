@@ -31,7 +31,10 @@ tmpnb: minimal-image tmpnb-image
 		--image=jupyter/minimal --cull_timeout=$(CULL_TIMEOUT) --cull_period=$(CULL_PERIOD) \
 		--logging=$(LOGGING) --pool_size=$(POOL_SIZE)
 
-dev: cleanup proxy tmpnb
+dev: cleanup proxy tmpnb open
+
+open:
+	-open http://`echo $(DOCKER_HOST) | cut -d":" -f2`:8000
 
 cleanup:
 	-docker stop `docker ps -aq`
