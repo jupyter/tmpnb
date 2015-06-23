@@ -165,7 +165,7 @@ class DockerSpawner():
             result = yield fn(*args, **kwargs)
             raise gen.Return(result)
         except (docker.errors.APIError, requests.exceptions.RequestException) as e:
-            app_log.error("Encountered a Docker error (%i retries remain): %s", max_tries, e)
+            app_log.error("Encountered a Docker error with {} ({} retries remain): {}".format(fn.__name__, max_tries, e))
             if max_tries > 0:
                 kwargs['max_tries'] = max_tries - 1
                 result = yield self._with_retries(fn, *args, **kwargs)
