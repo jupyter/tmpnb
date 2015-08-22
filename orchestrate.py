@@ -12,15 +12,22 @@ from concurrent.futures import ThreadPoolExecutor
 import tornado
 import tornado.options
 from tornado.log import app_log
-from tornado.web import RequestHandler
+from tornado.web import RequestHandler, HTTPError
 
 from tornado import gen, web
 
 import dockworker
 import spawnpool
 
+class BaseHandler(RequestHandler):
+    def write_error(self, status_code, **kwargs):
+        if status_code == 404:
+            self.render("error/404.html", status_code = status_code)
+        else:
+            self.render("error/500.html", status_code = status_code)
 
-class LoadingHandler(RequestHandler):
+
+class LoadingHandler(BaseHandler):
     def get(self, path=None):
         if self.allow_origin:
             self.set_header("Access-Control-Allow-Origin", self.allow_origin)
@@ -31,7 +38,7 @@ class LoadingHandler(RequestHandler):
         return self.settings['allow_origin']
 
 
-class StatsHandler(RequestHandler):
+class StatsHandler(BaseHandler):
     def get(self):
         '''Returns some statistics/metadata about the tmpnb server'''
         response = {
@@ -51,7 +58,7 @@ class StatsHandler(RequestHandler):
     def allow_origin(self):
         return self.settings['allow_origin']
 
-class SpawnHandler(RequestHandler):
+class SpawnHandler(BaseHandler):
 
     @gen.coroutine
     def get(self, path=None):
@@ -100,7 +107,7 @@ class SpawnHandler(RequestHandler):
         return self.settings['allow_origin']
 
 
-class APISpawnHandler(RequestHandler):
+class APISpawnHandler(BaseHandler):
 
     @gen.coroutine
     def post(self):
@@ -237,6 +244,7 @@ def main():
     ioloop = tornado.ioloop.IOLoop().instance()
 
     settings = dict(
+        default_handler_class=BaseHandler,
         static_path=static_path,
         cookie_secret=uuid.uuid4(),
         xsrf_cookies=False,
