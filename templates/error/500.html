@@ -1,0 +1,40 @@
+<html>
+<head>
+  <title>tmpnb</title>
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css">
+
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap-theme.min.css">
+</head>
+<body>
+
+  <div class="jumbotron">
+    <div id="main" class="container text-center">
+      <h1>tmpnb</h1>
+      <div id="message">
+        <noscript>
+          <p>You'll need JavaScript enabled to enjoy this site!</p>
+        </noscript>
+
+        <div id="error-message">
+            <h2> Ah shucks! </h2>
+            <h3> Looks like there was an error! </h3>
+            <h4> Error Code: {{status_code}} </h4>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  
+  <script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+  
+    ga('create', 'UA-56096826-1', 'auto');
+    ga('require', 'displayfeatures');
+    ga('send', 'pageview');
+  </script>
+</body>
+</html>
