@@ -5,6 +5,8 @@ import re
 import docker
 import requests
 
+from docker.utils import create_host_config, kwargs_from_env
+
 from tornado import gen, web
 from tornado.log import app_log
 
@@ -50,9 +52,14 @@ class DockerSpawner():
                  timeout=30,
                  max_workers=64):
 
-        blocking_docker_client = docker.Client(base_url=docker_host,
-                                               version=version,
-                                               timeout=timeout)
+        kwargs = kwargs_from_env()
+        kwargs['tls'].assert_hostname = False
+
+        blocking_docker_client = docker.Client(**kwargs)
+
+        #blocking_docker_client = docker.Client(base_url=docker_host,
+        #                                       version=version,
+        #                                       timeout=timeout)
 
         executor = ThreadPoolExecutor(max_workers=max_workers)
 
@@ -88,11 +95,27 @@ class DockerSpawner():
             rendered_command
         ]
 
+        lxc_conf = {
+            "cgroup" : {
+                "memory": {
+                    "limit_in_bytes": container_config.mem_limit
+                },
+                "cpu": {
+                    "shares": container_config.cpu_shares
+                }
+            }
+        }
+
+        host_config = dict(
+            lxc_conf=lxc_conf
+        )
+
+        host_config = create_host_config(**host_config)
+
         resp = yield self._with_retries(self.docker_client.create_container,
                                         image=container_config.image,
                                         command=command,
-                                        mem_limit=container_config.mem_limit,
-                                        cpu_shares=container_config.cpu_shares,
+                                        host_config=host_config,
                                         name=container_name)
 
         docker_warnings = resp['Warnings']
