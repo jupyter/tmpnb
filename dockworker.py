@@ -55,6 +55,8 @@ class DockerSpawner():
         kwargs = kwargs_from_env()
         kwargs['tls'].assert_hostname = False
 
+        kwargs['version'] = '1.18'
+
         blocking_docker_client = docker.Client(**kwargs)
 
         #blocking_docker_client = docker.Client(base_url=docker_host,
@@ -107,7 +109,7 @@ class DockerSpawner():
         }
 
         host_config = dict(
-            lxc_conf=lxc_conf
+            #lxc_conf=lxc_conf
         )
 
         host_config = create_host_config(**host_config)
@@ -118,7 +120,8 @@ class DockerSpawner():
                                         host_config=host_config,
                                         name=container_name)
 
-        docker_warnings = resp['Warnings']
+        app_log.info(resp)
+        docker_warnings = resp.get('Warnings')
         if docker_warnings is not None:
             app_log.warn(docker_warnings)
 
@@ -126,7 +129,7 @@ class DockerSpawner():
         app_log.info("Created container {}".format(container_id))
 
         port_bindings = {
-            container_config.container_port: (container_config.container_ip,)
+            container_config.container_port: ('0.0.0.0',)
         }
         yield self._with_retries(self.docker_client.start,
                                  container_id,
