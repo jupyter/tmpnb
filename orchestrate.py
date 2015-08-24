@@ -32,7 +32,7 @@ class LoadingHandler(BaseHandler):
         if self.allow_origin:
             self.set_header("Access-Control-Allow-Origin", self.allow_origin)
         self.render("loading.html", path=path)
-    
+
     @property
     def allow_origin(self):
         return self.settings['allow_origin']
@@ -191,6 +191,9 @@ def main():
     tornado.options.define('allow_origin', default=None,
         help="Set the Access-Control-Allow-Origin header. Use '*' to allow any origin to access."
     )
+    tornado.options.define('assert_hostname', default=False,
+        help="Verify hostname of Docker daemon."
+    )
 
     tornado.options.parse_command_line()
     opts = tornado.options.options
@@ -226,6 +229,7 @@ def main():
                                        version=opts.docker_version,
                                        timeout=30,
                                        max_workers=opts.max_dock_workers,
+                                       assert_hostname=opts.assert_hostname,
     )
 
     static_path = os.path.join(os.path.dirname(__file__), "static")
@@ -275,7 +279,7 @@ def main():
                  opts.cull_period)
     culler = tornado.ioloop.PeriodicCallback(pool.heartbeat, cull_ms)
     culler.start()
-    
+
     app_log.info("Listening on {}:{}".format(opts.ip or '*', opts.port))
     application = tornado.web.Application(handlers, **settings)
     application.listen(opts.port, opts.ip)

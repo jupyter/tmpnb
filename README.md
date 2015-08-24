@@ -53,13 +53,16 @@ docker run --net=host -d -e CONFIGPROXY_AUTH_TOKEN=$TOKEN \
 Usage: orchestrate.py [OPTIONS]
 
 Options:
+
   --allow_origin                   Set the Access-Control-Allow-Origin header.
                                    Use '*' to allow any origin to access.
-                                   (default None)
+  --assert_hostname                Verify hostname of Docker daemon. (default
+                                   False)
   --command                        command to run when booting the image. A
                                    placeholder for base_path should be
-                                   provided. Example: "ipython notebook
-                                   --NotebookApp.base_url=/{base_path}"
+                                   provided. (default ipython notebook --no-
+                                   browser --port {port} --ip=0.0.0.0
+                                   --NotebookApp.base_url=/{base_path})
   --container_ip                   IP address for containers to bind to
                                    (default 127.0.0.1)
   --container_port                 Port for containers to bind to (default
@@ -75,6 +78,8 @@ Options:
   --image                          Docker container to spawn for new users.
                                    Must be on the system already (default
                                    jupyter/minimal)
+  --ip                             ip for the main server to listen on
+                                   [default: all interfaces]
   --max_dock_workers               Maximum number of docker workers (default 2)
   --mem_limit                      Limit on Memory, per container (default
                                    512m)

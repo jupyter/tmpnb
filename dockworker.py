@@ -5,6 +5,8 @@ import re
 import docker
 import requests
 
+from docker.utils import create_host_config, kwargs_from_env
+
 from tornado import gen, web
 from tornado.log import app_log
 
@@ -46,13 +48,20 @@ class AsyncDockerClient():
 class DockerSpawner():
     def __init__(self,
                  docker_host='unix://var/run/docker.sock',
-                 version='1.12',
+                 version='1.18',
                  timeout=30,
-                 max_workers=64):
+                 max_workers=64,
+                 assert_hostname=False):
 
-        blocking_docker_client = docker.Client(base_url=docker_host,
-                                               version=version,
-                                               timeout=timeout)
+        #kwargs = kwargs_from_env(assert_hostname=False)
+        kwargs = kwargs_from_env(assert_hostname=assert_hostname)
+
+        # environment variable DOCKER_HOST takes precedence
+        kwargs.setdefault('base_url', docker_host)
+
+        blocking_docker_client = docker.Client(version=version,
+                                               timeout=timeout,
+                                               **kwargs)
 
         executor = ThreadPoolExecutor(max_workers=max_workers)
 
@@ -88,14 +97,20 @@ class DockerSpawner():
             rendered_command
         ]
 
+        host_config = dict(
+            mem_limit=container_config.mem_limit
+        )
+
+        host_config = create_host_config(**host_config)
+
         resp = yield self._with_retries(self.docker_client.create_container,
                                         image=container_config.image,
                                         command=command,
-                                        mem_limit=container_config.mem_limit,
-                                        cpu_shares=container_config.cpu_shares,
+                                        host_config=host_config,
+                                        cpu_shares=int(container_config.cpu_shares),
                                         name=container_name)
 
-        docker_warnings = resp['Warnings']
+        docker_warnings = resp.get('Warnings')
         if docker_warnings is not None:
             app_log.warn(docker_warnings)
 
