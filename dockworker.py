@@ -97,19 +97,8 @@ class DockerSpawner():
             rendered_command
         ]
 
-        lxc_conf = {
-            "cgroup" : {
-                "memory": {
-                    "limit_in_bytes": container_config.mem_limit
-                },
-                "cpu": {
-                    "shares": container_config.cpu_shares
-                }
-            }
-        }
-
         host_config = dict(
-            lxc_conf=lxc_conf
+            mem_limit=container_config.mem_limit
         )
 
         host_config = create_host_config(**host_config)
@@ -118,6 +107,7 @@ class DockerSpawner():
                                         image=container_config.image,
                                         command=command,
                                         host_config=host_config,
+                                        cpu_shares=int(container_config.cpu_shares),
                                         name=container_name)
 
         app_log.info(resp)
