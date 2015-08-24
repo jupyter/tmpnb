@@ -191,6 +191,21 @@ def main():
     tornado.options.define('allow_origin', default=None,
         help="Set the Access-Control-Allow-Origin header. Use '*' to allow any origin to access."
     )
+    tornado.options.define('expose_headers', default=None,
+            help="Sets the Access-Control-Expose-Headers header."
+    )
+    tornado.options.define('max_age', default=None,
+        help="Sets the Access-Control-Max-Age header."
+    )
+    tornado.options.define('allow_credentials', default=None,
+        help="Sets the Access-Control-Allow-Credentials header."
+    )
+    tornado.options.define('allow_methods', default=None,
+        help="Sets the Access-Control-Allow-Methods header."
+    )
+    tornado.options.define('allow_headers', default=None,
+        help="Sets the Access-Control-Allow-Headers header."
+    )
     tornado.options.define('assert_hostname', default=False,
         help="Verify hostname of Docker daemon."
     )
