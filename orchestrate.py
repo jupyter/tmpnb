@@ -26,6 +26,29 @@ class BaseHandler(RequestHandler):
         else:
             self.render("error/500.html", status_code = status_code)
 
+    @property
+    def allow_origin(self):
+        return self.settings['allow_origin']
+
+    @property
+    def expose_headers(self):
+        return self.settings['expose_headers']
+
+    @property
+    def max_age(self):
+        return self.settings['max-age']
+
+    @property
+    def allow_credentials(self):
+        return self.settings['allow-credentials']
+
+    @property
+    def allow_methods(self):
+        return self.settings['allow_methods']
+
+    @property
+    def allow_headers(self):
+        return self.settings['allow_headers']
 
 class LoadingHandler(BaseHandler):
     def get(self, path=None):
