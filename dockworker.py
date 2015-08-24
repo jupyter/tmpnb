@@ -119,7 +119,7 @@ class DockerSpawner():
         app_log.info("Created container {}".format(container_id))
 
         port_bindings = {
-            container_config.container_port: ('0.0.0.0',)
+            container_config.container_port: (container_config.container_ip,)
         }
         yield self._with_retries(self.docker_client.start,
                                  container_id,
