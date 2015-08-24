@@ -108,7 +108,6 @@ class DockerSpawner():
                                         cpu_shares=int(container_config.cpu_shares),
                                         name=container_name)
 
-        app_log.info(resp)
         docker_warnings = resp.get('Warnings')
         if docker_warnings is not None:
             app_log.warn(docker_warnings)
