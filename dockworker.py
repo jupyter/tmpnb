@@ -109,7 +109,7 @@ class DockerSpawner():
         }
 
         host_config = dict(
-            #lxc_conf=lxc_conf
+            lxc_conf=lxc_conf
         )
 
         host_config = create_host_config(**host_config)
