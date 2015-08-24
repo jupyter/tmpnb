@@ -70,7 +70,7 @@ Options:
   --cull_timeout                   Timeout (s) for culling idle containers.
                                    (default 3600)
   --docker_version                 Version of the Docker API to use (default
-                                   1.13)
+                                   1.18)
   --help                           show this help information
   --image                          Docker container to spawn for new users.
                                    Must be on the system already (default
