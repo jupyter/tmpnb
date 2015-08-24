@@ -50,9 +50,11 @@ class DockerSpawner():
                  docker_host='unix://var/run/docker.sock',
                  version='1.18',
                  timeout=30,
-                 max_workers=64):
+                 max_workers=64,
+                 assert_hostname=False):
 
-        kwargs = kwargs_from_env(assert_hostname=False)
+        #kwargs = kwargs_from_env(assert_hostname=False)
+        kwargs = kwargs_from_env(assert_hostname=assert_hostname)
 
         # environment variable DOCKER_HOST takes precedence
         kwargs.setdefault('base_url', docker_host)
