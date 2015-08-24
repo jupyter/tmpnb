@@ -185,7 +185,7 @@ def main():
         help="Set the Access-Control-Allow-Origin header. Use '*' to allow any origin to access."
     )
     tornado.options.define('assert_hostname', default=False,
-        help="Verify hostname of Docker daemon. Defaults to false."
+        help="Verify hostname of Docker daemon."
     )
 
     tornado.options.parse_command_line()
