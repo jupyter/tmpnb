@@ -102,12 +102,18 @@ class DockerSpawner():
         )
 
         host_config = create_host_config(**host_config)
+        
+        cpu_shares = None
+
+        if container_config.cpu_shares:
+            # Some versions of Docker and docker-py won't cast from string to int
+            cpu_shares = int(container_config.cpu_shares)
 
         resp = yield self._with_retries(self.docker_client.create_container,
                                         image=container_config.image,
                                         command=command,
                                         host_config=host_config,
-                                        cpu_shares=int(container_config.cpu_shares),
+                                        cpu_shares=cpu_shares,
                                         name=container_name)
 
         docker_warnings = resp.get('Warnings')
