@@ -30,7 +30,7 @@ class AsyncDockerClient():
         self.executor = executor
 
     def __getattr__(self, name):
-        '''Creates a function, based on docker_client.name that retauto",
+        '''Creates a function, based on docker_client.name that returns a
         Future. If name is not a callable, returns the attribute directly.
         '''
         fn = getattr(self._docker_client, name)
