@@ -48,7 +48,7 @@ class AsyncDockerClient():
 class DockerSpawner():
     def __init__(self,
                  docker_host='unix://var/run/docker.sock',
-                 version='1.18',
+                 version='auto',
                  timeout=30,
                  max_workers=64,
                  assert_hostname=False):

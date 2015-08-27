@@ -226,7 +226,6 @@ def main():
     )
 
     spawner = dockworker.DockerSpawner(docker_host,
-                                       version=opts.docker_version,
                                        timeout=30,
                                        max_workers=opts.max_dock_workers,
                                        assert_hostname=opts.assert_hostname,
