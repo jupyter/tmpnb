@@ -173,7 +173,7 @@ def main():
     tornado.options.define('image', default="jupyter/minimal",
         help="Docker container to spawn for new users. Must be on the system already"
     )
-    tornado.options.define('docker_version', default="1.13",
+    tornado.options.define('docker_version', default="auto",
         help="Version of the Docker API to use"
     )
     tornado.options.define('redirect_uri', default="/tree",
@@ -227,6 +227,7 @@ def main():
 
     spawner = dockworker.DockerSpawner(docker_host,
                                        timeout=30,
+                                       version=opts.docker_version,
                                        max_workers=opts.max_dock_workers,
                                        assert_hostname=opts.assert_hostname,
     )
