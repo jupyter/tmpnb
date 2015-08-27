@@ -37,6 +37,8 @@ If you need to set the `docker-version` or other options, they can be passed to 
 docker run --net=host -d -e CONFIGPROXY_AUTH_TOKEN=$TOKEN -v /var/run/docker.sock:/docker.sock jupyter/tmpnb python orchestrate.py --cull-timeout=60 --docker-version="1.13" --command="ipython notebook --NotebookApp.base_url={base_path} --ip=0.0.0.0 --port {port}"
 ```
 
+Note that if you do not pass a value to `docker-version`, tmpnb will automatically use the Docker API version provided by the server.
+
 #### Launching with *your own* Docker images
 
 tmpnb can run any Docker container provided by the `--image` option, so long as the `--command` option tells where the `{base_path}` and `{port}`. Those are literal strings, complete with curly braces that tmpnb will replace with an assigned `base_path` and `port`.
