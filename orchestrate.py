@@ -26,16 +26,47 @@ class BaseHandler(RequestHandler):
         else:
             self.render("error/500.html", status_code = status_code)
 
-
-class LoadingHandler(BaseHandler):
-    def get(self, path=None):
+    def prepare(self):
         if self.allow_origin:
             self.set_header("Access-Control-Allow-Origin", self.allow_origin)
-        self.render("loading.html", path=path)
+        if self.expose_headers:
+            self.set_header("Access-Control-Expose-Headers", self.expose_headers)
+        if self.max_age:
+            self.set_header("Access-Control-Max-Age", self.max_age)
+        if self.allow_credentials:
+            self.set_header("Access-Control-Allow-Credentials", self.allow_credentials)
+        if self.allow_methods:
+            self.set_header("Access-Control-Allow-Methods", self.allow_methods)
+        if self.allow_headers:
+            self.set_header("Access-Control-Allow-Headers", self.allow_headers)
 
     @property
     def allow_origin(self):
         return self.settings['allow_origin']
+
+    @property
+    def expose_headers(self):
+        return self.settings['expose_headers']
+
+    @property
+    def max_age(self):
+        return self.settings['max_age']
+
+    @property
+    def allow_credentials(self):
+        return self.settings['allow_credentials']
+
+    @property
+    def allow_methods(self):
+        return self.settings['allow_methods']
+
+    @property
+    def allow_headers(self):
+        return self.settings['allow_headers']
+
+class LoadingHandler(BaseHandler):
+    def get(self, path=None):
+        self.render("loading.html", path=path)
 
 
 class StatsHandler(BaseHandler):
@@ -46,25 +77,18 @@ class StatsHandler(BaseHandler):
                 'capacity': self.pool.capacity,
                 'version': '0.0.1-dev',
         }
-        if self.allow_origin:
-            self.set_header("Access-Control-Allow-Origin", self.allow_origin)
         self.write(response)
 
     @property
     def pool(self):
         return self.settings['pool']
 
-    @property
-    def allow_origin(self):
-        return self.settings['allow_origin']
 
 class SpawnHandler(BaseHandler):
 
     @gen.coroutine
     def get(self, path=None):
         '''Spawns a brand new server'''
-        if self.allow_origin:
-            self.set_header("Access-Control-Allow-Origin", self.allow_origin)
         try:
             if path is None:
                 # No path. Assign a prelaunched container from the pool and redirect to it.
@@ -102,18 +126,12 @@ class SpawnHandler(BaseHandler):
     def redirect_uri(self):
         return self.settings['redirect_uri']
 
-    @property
-    def allow_origin(self):
-        return self.settings['allow_origin']
-
 
 class APISpawnHandler(BaseHandler):
 
     @gen.coroutine
     def post(self):
         '''Spawns a brand new server programatically'''
-        if self.allow_origin:
-            self.set_header("Access-Control-Allow-Origin", self.allow_origin)
         try:
             url = self.pool.acquire().path
             app_log.info("Allocated [%s] from the pool.", url)
@@ -126,10 +144,6 @@ class APISpawnHandler(BaseHandler):
     @property
     def pool(self):
         return self.settings['pool']
-
-    @property
-    def allow_origin(self):
-        return self.settings['allow_origin']
 
 
 def main():
@@ -190,6 +204,21 @@ def main():
     )
     tornado.options.define('allow_origin', default=None,
         help="Set the Access-Control-Allow-Origin header. Use '*' to allow any origin to access."
+    )
+    tornado.options.define('expose_headers', default=None,
+            help="Sets the Access-Control-Expose-Headers header."
+    )
+    tornado.options.define('max_age', default=None,
+        help="Sets the Access-Control-Max-Age header."
+    )
+    tornado.options.define('allow_credentials', default=None,
+        help="Sets the Access-Control-Allow-Credentials header."
+    )
+    tornado.options.define('allow_methods', default=None,
+        help="Sets the Access-Control-Allow-Methods header."
+    )
+    tornado.options.define('allow_headers', default=None,
+        help="Sets the Access-Control-Allow-Headers header."
     )
     tornado.options.define('assert_hostname', default=False,
         help="Verify hostname of Docker daemon."
@@ -255,6 +284,11 @@ def main():
         debug=True,
         cull_period=opts.cull_period,
         allow_origin=opts.allow_origin,
+        expose_headers=opts.expose_headers,
+        max_age=opts.max_age,
+        allow_credentials=opts.allow_credentials,
+        allow_methods=opts.allow_methods,
+        allow_headers=opts.allow_headers,
         spawner=spawner,
         pool=pool,
         autoescape=None,

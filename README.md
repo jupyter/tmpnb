@@ -56,6 +56,12 @@ Usage: orchestrate.py [OPTIONS]
 
 Options:
 
+  --allow_credentials              Sets the Access-Control-Allow-Credentials
+                                   header.
+  --allow_headers                  Sets the Access-Control-Allow-Headers
+                                   header.
+  --allow_methods                  Sets the Access-Control-Allow-Methods
+                                   header.
   --allow_origin                   Set the Access-Control-Allow-Origin header.
                                    Use '*' to allow any origin to access.
   --assert_hostname                Verify hostname of Docker daemon. (default
@@ -75,13 +81,16 @@ Options:
   --cull_timeout                   Timeout (s) for culling idle containers.
                                    (default 3600)
   --docker_version                 Version of the Docker API to use (default
-                                   1.13)
+                                   auto)
+  --expose_headers                 Sets the Access-Control-Expose-Headers
+                                   header.
   --help                           show this help information
   --image                          Docker container to spawn for new users.
                                    Must be on the system already (default
                                    jupyter/minimal)
   --ip                             ip for the main server to listen on
                                    [default: all interfaces]
+  --max_age                        Sets the Access-Control-Max-Age header.
   --max_dock_workers               Maximum number of docker workers (default 2)
   --mem_limit                      Limit on Memory, per container (default
                                    512m)
