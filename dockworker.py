@@ -48,7 +48,7 @@ class AsyncDockerClient():
 class DockerSpawner():
     def __init__(self,
                  docker_host='unix://var/run/docker.sock',
-                 version='1.18',
+                 version='auto',
                  timeout=30,
                  max_workers=64,
                  assert_hostname=False):
@@ -102,12 +102,18 @@ class DockerSpawner():
         )
 
         host_config = create_host_config(**host_config)
+        
+        cpu_shares = None
+
+        if container_config.cpu_shares:
+            # Some versions of Docker and docker-py won't cast from string to int
+            cpu_shares = int(container_config.cpu_shares)
 
         resp = yield self._with_retries(self.docker_client.create_container,
                                         image=container_config.image,
                                         command=command,
                                         host_config=host_config,
-                                        cpu_shares=int(container_config.cpu_shares),
+                                        cpu_shares=cpu_shares,
                                         name=container_name)
 
         docker_warnings = resp.get('Warnings')
