@@ -56,10 +56,6 @@ class LoadingHandler(BaseHandler):
             self.set_header("Access-Control-Allow-Origin", self.allow_origin)
         self.render("loading.html", path=path)
 
-    @property
-    def allow_origin(self):
-        return self.settings['allow_origin']
-
 
 class StatsHandler(BaseHandler):
     def get(self):
@@ -77,9 +73,6 @@ class StatsHandler(BaseHandler):
     def pool(self):
         return self.settings['pool']
 
-    @property
-    def allow_origin(self):
-        return self.settings['allow_origin']
 
 class SpawnHandler(BaseHandler):
 
@@ -125,10 +118,6 @@ class SpawnHandler(BaseHandler):
     def redirect_uri(self):
         return self.settings['redirect_uri']
 
-    @property
-    def allow_origin(self):
-        return self.settings['allow_origin']
-
 
 class APISpawnHandler(BaseHandler):
 
@@ -149,10 +138,6 @@ class APISpawnHandler(BaseHandler):
     @property
     def pool(self):
         return self.settings['pool']
-
-    @property
-    def allow_origin(self):
-        return self.settings['allow_origin']
 
 
 def main():
