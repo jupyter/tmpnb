@@ -26,6 +26,20 @@ class BaseHandler(RequestHandler):
         else:
             self.render("error/500.html", status_code = status_code)
 
+    def prepare(self):
+        if self.allow_origin:
+            self.set_header("Access-Control-Allow-Origin", self.allow_origin)
+        if self.expose_headers:
+            self.set_header("Access-Control-Expose-Headers", self.expose_headers)
+        if self.max_age:
+            self.set_header("Access-Control-Max-Age", self.max_age)
+        if self.allow_credentials:
+            self.set_header("Access-Control-Allow-Credentials", self.allow_credentials)
+        if self.allow_methods:
+            self.set_header("Access-Control-Allow-Methods", self.allow_methods)
+        if self.allow_headers:
+            self.set_header("Access-Control-Allow-Headers", self.allow_headers)
+
     @property
     def allow_origin(self):
         return self.settings['allow_origin']
@@ -36,7 +50,7 @@ class BaseHandler(RequestHandler):
 
     @property
     def max_age(self):
-        return self.settings['max-age']
+        return self.settings['max_age']
 
     @property
     def allow_credentials(self):
@@ -52,8 +66,6 @@ class BaseHandler(RequestHandler):
 
 class LoadingHandler(BaseHandler):
     def get(self, path=None):
-        if self.allow_origin:
-            self.set_header("Access-Control-Allow-Origin", self.allow_origin)
         self.render("loading.html", path=path)
 
 
@@ -65,8 +77,6 @@ class StatsHandler(BaseHandler):
                 'capacity': self.pool.capacity,
                 'version': '0.0.1-dev',
         }
-        if self.allow_origin:
-            self.set_header("Access-Control-Allow-Origin", self.allow_origin)
         self.write(response)
 
     @property
@@ -79,8 +89,6 @@ class SpawnHandler(BaseHandler):
     @gen.coroutine
     def get(self, path=None):
         '''Spawns a brand new server'''
-        if self.allow_origin:
-            self.set_header("Access-Control-Allow-Origin", self.allow_origin)
         try:
             if path is None:
                 # No path. Assign a prelaunched container from the pool and redirect to it.
@@ -124,8 +132,6 @@ class APISpawnHandler(BaseHandler):
     @gen.coroutine
     def post(self):
         '''Spawns a brand new server programatically'''
-        if self.allow_origin:
-            self.set_header("Access-Control-Allow-Origin", self.allow_origin)
         try:
             url = self.pool.acquire().path
             app_log.info("Allocated [%s] from the pool.", url)
