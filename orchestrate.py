@@ -54,7 +54,7 @@ class BaseHandler(RequestHandler):
 
     @property
     def allow_credentials(self):
-        return self.settings['allow-credentials']
+        return self.settings['allow_credentials']
 
     @property
     def allow_methods(self):
