@@ -69,7 +69,7 @@ class LoadingHandler(BaseHandler):
         self.render("loading.html", path=path)
 
 
-class StatsHandler(BaseHandler):
+class StatsAPIHandler(BaseHandler):
     def get(self):
         '''Returns some statistics/metadata about the tmpnb server'''
         response = {
@@ -232,7 +232,7 @@ def main():
         (r"/spawn/?(/user/\w+(?:/.*)?)?", SpawnHandler),
         (r"/api/spawn/", APISpawnHandler),
         (r"/(user/\w+)(?:/.*)?", LoadingHandler),
-        (r"/stats", StatsHandler),
+        (r"/stats/api", StatsAPIHandler),
     ]
 
     proxy_token = os.environ['CONFIGPROXY_AUTH_TOKEN']
