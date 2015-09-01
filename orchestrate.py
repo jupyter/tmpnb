@@ -77,18 +77,12 @@ class APIStatsHandler(BaseHandler):
                 'capacity': self.pool.capacity,
                 'version': '0.1.0',
                 'container_image': self.pool.container_config.image,
-                'docker_version': self.spawner.docker_client._docker_client.version(),
-                'docker_containers': self.spawner.docker_client._docker_client.containers()
         }
         self.write(response)
 
     @property
     def pool(self):
         return self.settings['pool']
-
-    @property
-    def spawner(self):
-        return self.settings['spawner']
 
 
 class SpawnHandler(BaseHandler):
