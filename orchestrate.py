@@ -12,7 +12,7 @@ from concurrent.futures import ThreadPoolExecutor
 import tornado
 import tornado.options
 from tornado.log import app_log
-from tornado.web import RequestHandler, HTTPError
+from tornado.web import RequestHandler, HTTPError, RedirectHandler
 
 from tornado import gen, web
 
@@ -234,6 +234,7 @@ def main():
         (r"/api/spawn/", APISpawnHandler),
         (r"/(user/\w+)(?:/.*)?", LoadingHandler),
         (r"/api/stats", APIStatsHandler),
+        (r"/stats", RedirectHandler, {"url": "/api/stats"})
     ]
 
     proxy_token = os.environ['CONFIGPROXY_AUTH_TOKEN']
