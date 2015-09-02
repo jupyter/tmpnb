@@ -85,6 +85,15 @@ class APIStatsHandler(BaseHandler):
         return self.settings['pool']
 
 
+class InfoHandler(BaseHandler):
+    def get(self):
+        self.render("stats.html")
+
+    @property
+    def pool(self):
+        return self.settings['pool']
+
+
 class SpawnHandler(BaseHandler):
 
     @gen.coroutine
@@ -234,7 +243,8 @@ def main():
         (r"/api/spawn/", APISpawnHandler),
         (r"/(user/\w+)(?:/.*)?", LoadingHandler),
         (r"/api/stats", APIStatsHandler),
-        (r"/stats", RedirectHandler, {"url": "/api/stats"})
+        (r"/stats", RedirectHandler, {"url": "/api/stats"}),
+        (r"/info", InfoHandler)
     ]
 
     proxy_token = os.environ['CONFIGPROXY_AUTH_TOKEN']
