@@ -12,7 +12,7 @@ from concurrent.futures import ThreadPoolExecutor
 import tornado
 import tornado.options
 from tornado.log import app_log
-from tornado.web import RequestHandler, HTTPError
+from tornado.web import RequestHandler, HTTPError, RedirectHandler
 
 from tornado import gen, web
 
@@ -69,15 +69,26 @@ class LoadingHandler(BaseHandler):
         self.render("loading.html", path=path)
 
 
-class StatsHandler(BaseHandler):
+class APIStatsHandler(BaseHandler):
     def get(self):
         '''Returns some statistics/metadata about the tmpnb server'''
+        self.set_header("Content-Type", 'application/json')
         response = {
                 'available': len(self.pool.available),
                 'capacity': self.pool.capacity,
-                'version': '0.0.1-dev',
+                'version': '0.1.0',
+                'container_image': self.pool.container_config.image,
         }
         self.write(response)
+
+    @property
+    def pool(self):
+        return self.settings['pool']
+
+
+class InfoHandler(BaseHandler):
+    def get(self):
+        self.render("stats.html")
 
     @property
     def pool(self):
@@ -232,7 +243,9 @@ def main():
         (r"/spawn/?(/user/\w+(?:/.*)?)?", SpawnHandler),
         (r"/api/spawn/", APISpawnHandler),
         (r"/(user/\w+)(?:/.*)?", LoadingHandler),
-        (r"/stats", StatsHandler),
+        (r"/api/stats", APIStatsHandler),
+        (r"/stats", RedirectHandler, {"url": "/api/stats"}),
+        (r"/info", InfoHandler)
     ]
 
     proxy_token = os.environ['CONFIGPROXY_AUTH_TOKEN']
