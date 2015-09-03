@@ -72,6 +72,7 @@ class LoadingHandler(BaseHandler):
 class APIStatsHandler(BaseHandler):
     def get(self):
         '''Returns some statistics/metadata about the tmpnb server'''
+        self.set_header("Content-Type", 'application/json')
         response = {
                 'available': len(self.pool.available),
                 'capacity': self.pool.capacity,
