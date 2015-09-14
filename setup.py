@@ -7,7 +7,7 @@ if "develop" in sys.argv or any(arg.startswith("bdist") for arg in sys.argv):
 setup_args = dict(
     name="tmpnb",
     version="0.1.0",
-    description="Tool for aunching temporary Jupyter notebook servers",
+    description="Tool for launching temporary Jupyter notebook servers",
     url="https://github.com/jupyter/tmpnb",
     license="BSD",
     author="Jupyter Development Team",
