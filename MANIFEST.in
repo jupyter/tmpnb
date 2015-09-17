@@ -1,0 +1,10 @@
+include requirements.txt
+include *.py
+include Makefile
+recursive-include static *.css *.js *.txt
+recursive-include templates *.html
+recursive-include script *
+include *.in
+include *.md
+include Dockerfile
+include LICENSE
