@@ -12,7 +12,7 @@ from tornado.log import app_log
 
 ContainerConfig = namedtuple('ContainerConfig', [
     'image', 'command', 'mem_limit', 'cpu_shares', 'container_ip', 
-    'container_port', 'container_user'
+    'container_port', 'container_user', 'host_network'
 ])
 
 # Number of times to retry API calls before giving up.
@@ -70,13 +70,29 @@ class DockerSpawner():
                                                 executor)
         self.docker_client = async_docker_client
 
+        self.port = 0
+
     @gen.coroutine
     def create_notebook_server(self, base_path, container_name, container_config):
         '''Creates a notebook_server running off of `base_path`.
 
         Returns the (container_id, ip, port) tuple in a Future.'''
 
-        port = container_config.container_port
+        if container_config.host_network:
+            # Start with specified container port
+            if self.port == 0:
+                self.port = int(container_config.container_port)
+            port = self.port
+            self.port += 1
+            # No bindings when using the host network
+            port_bindings = None
+        else:
+            # Bind the specified within-container port to a random port
+            # on the container-host IP address
+            port = container_config.container_port
+            port_bindings = {
+                container_config.container_port: (container_config.container_ip,)
+            }
 
         app_log.debug(container_config)
 
@@ -90,7 +106,17 @@ class DockerSpawner():
         #
         # Important piece here is the parametrized base_path to let the
         # underlying process know where the proxy is routing it.
-        rendered_command = container_config.command.format(base_path=base_path, port=port)
+        rendered_command = container_config.command.format(base_path=base_path, port=port,
+            ip=container_config.container_ip)
+
+        if container_config.host_network:
+            # Don't allow the notebook server to find another port: we won't be
+            # aware of it here and will wind up routing to the wrong server.
+            # Instead, let the server fail, the container die, and the cluster
+            # self-heal. Other possible approaches: find a free port here and
+            # assign it to the container (has a race condition), query the 
+            # running notebook config for its port (another race condition).
+            rendered_command += ' --NotebookApp.port_retries=0'.format(ip=container_config.container_ip)
 
         command = [
             "/bin/sh",
@@ -99,7 +125,8 @@ class DockerSpawner():
         ]
 
         host_config = dict(
-            mem_limit=container_config.mem_limit
+            mem_limit=container_config.mem_limit,
+            network_mode='host' if container_config.host_network else 'bridge',
         )
 
         host_config = create_host_config(**host_config)
@@ -125,19 +152,20 @@ class DockerSpawner():
         container_id = resp['Id']
         app_log.info("Created container {}".format(container_id))
 
-        port_bindings = {
-            container_config.container_port: (container_config.container_ip,)
-        }
         yield self._with_retries(self.docker_client.start,
                                  container_id,
                                  port_bindings=port_bindings)
 
-        container_network = yield self._with_retries(self.docker_client.port,
-                                                     container_id,
-                                                     container_config.container_port)
+        if container_config.host_network:
+            host_port = port
+            host_ip = container_config.container_ip
+        else:
+            container_network = yield self._with_retries(self.docker_client.port,
+                                                         container_id,
+                                                         container_config.container_port)
 
-        host_port = container_network[0]['HostPort']
-        host_ip = container_network[0]['HostIp']
+            host_port = container_network[0]['HostPort']
+            host_ip = container_network[0]['HostIp']
 
         raise gen.Return((container_id, host_ip, int(host_port)))
 
