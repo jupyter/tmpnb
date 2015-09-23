@@ -241,11 +241,11 @@ def main():
     handlers = [
         (r"/", LoadingHandler),
         (r"/spawn/?(/user/\w+(?:/.*)?)?", SpawnHandler),
-        (r"/api/spawn/", APISpawnHandler),
+        (r"/api/spawn/?", APISpawnHandler),
         (r"/(user/\w+)(?:/.*)?", LoadingHandler),
-        (r"/api/stats", APIStatsHandler),
-        (r"/stats", RedirectHandler, {"url": "/api/stats"}),
-        (r"/info", InfoHandler)
+        (r"/api/stats/?", APIStatsHandler),
+        (r"/stats/?", RedirectHandler, {"url": "/api/stats"}),
+        (r"/info/?", InfoHandler)
     ]
 
     proxy_token = os.environ['CONFIGPROXY_AUTH_TOKEN']
