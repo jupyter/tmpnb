@@ -234,6 +234,9 @@ def main():
     tornado.options.define('assert_hostname', default=False,
         help="Verify hostname of Docker daemon."
     )
+    tornado.options.define('container_user', default=None,
+        help="User to run container command as"
+    )
 
     tornado.options.parse_command_line()
     opts = tornado.options.options
@@ -265,6 +268,7 @@ def main():
         cpu_shares=opts.cpu_shares,
         container_ip=opts.container_ip,
         container_port=opts.container_port,
+        container_user=opts.container_user,
     )
 
     spawner = dockworker.DockerSpawner(docker_host,
