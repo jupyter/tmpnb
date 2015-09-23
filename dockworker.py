@@ -11,7 +11,8 @@ from tornado import gen, web
 from tornado.log import app_log
 
 ContainerConfig = namedtuple('ContainerConfig', [
-    'image', 'command', 'mem_limit', 'cpu_shares', 'container_ip', 'container_port'
+    'image', 'command', 'mem_limit', 'cpu_shares', 'container_ip', 
+    'container_port', 'container_user'
 ])
 
 # Number of times to retry API calls before giving up.
@@ -111,6 +112,7 @@ class DockerSpawner():
 
         resp = yield self._with_retries(self.docker_client.create_container,
                                         image=container_config.image,
+                                        user=container_config.container_user,
                                         command=command,
                                         host_config=host_config,
                                         cpu_shares=cpu_shares,
