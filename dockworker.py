@@ -116,7 +116,7 @@ class DockerSpawner():
             # self-heal. Other possible approaches: find a free port here and
             # assign it to the container (has a race condition), query the 
             # running notebook config for its port (another race condition).
-            rendered_command += ' --NotebookApp.port_retries=0'.format(ip=container_config.container_ip)
+            rendered_command += ' --NotebookApp.port_retries=0'
 
         command = [
             "/bin/sh",
