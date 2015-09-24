@@ -109,15 +109,6 @@ class DockerSpawner():
         rendered_command = container_config.command.format(base_path=base_path, port=port,
             ip=container_config.container_ip)
 
-        if container_config.host_network:
-            # Don't allow the notebook server to find another port: we won't be
-            # aware of it here and will wind up routing to the wrong server.
-            # Instead, let the server fail, the container die, and the cluster
-            # self-heal. Other possible approaches: find a free port here and
-            # assign it to the container (has a race condition), query the 
-            # running notebook config for its port (another race condition).
-            rendered_command += ' --NotebookApp.port_retries=0'
-
         command = [
             "/bin/sh",
             "-c",
