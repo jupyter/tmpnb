@@ -1,10 +1,8 @@
 ## Nature on Swarm
 
-Bees.
+tmpnb connects to swarm in the same way it connects to the `DOCKER_API`.
 
-###
-
-tmpnb connects to swarm in the same way it connects to the DOCKER_API.
+example setup for working with tmpnb directly on swarm.
 
 ```bash
 export TOKEN=$( head -c 30 /dev/urandom | xxd -p )
