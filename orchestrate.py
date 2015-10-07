@@ -185,10 +185,17 @@ class APIPoolHandler(BaseHandler):
             self.pool.capacity = new_capacity
             yield self.pool.heartbeat()
 
+        diagnosis = self.pool.diagnosis()
+        routes = yield diagnosis._proxy_routes()
+
+        print(routes)
+
         self.write(dict(
             capacity=self.pool.capacity,
             navailable=len(self.pool.available),
+            routes=routes,
         ))
+
 
     @property
     def pool(self):
