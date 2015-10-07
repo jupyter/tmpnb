@@ -20,7 +20,6 @@ import dockworker
 
 AsyncHTTPClient.configure("tornado.curl_httpclient.CurlAsyncHTTPClient")
 
-
 def sample_with_replacement(a, size=12):
     '''Get a random path. If Python had sampling with replacement built in,
     I would use that. The other alternative is numpy.random.choice, but
@@ -124,6 +123,13 @@ class SpawnPool():
                 app_log.info("Declining to launch a new container because [%i] containers are" +
                              " already running, and the capacity is [%i].",
                              len(running), self.capacity)
+    def diagnosis(self):
+        return Diagnosis(self.max_age,
+                         self.spawner,
+                         self.container_name_pattern,
+                         self.proxy_endpoint,
+                         self.proxy_token)
+
 
     @gen.coroutine
     def heartbeat(self):
@@ -140,11 +146,8 @@ class SpawnPool():
 
             app_log.debug("Heartbeat begun. Measuring current state.")
 
-            diagnosis = Diagnosis(self.max_age,
-                                  self.spawner,
-                                  self.container_name_pattern,
-                                  self.proxy_endpoint,
-                                  self.proxy_token)
+            diagnosis = self.diagnosis()
+
             yield diagnosis.observe()
 
             tasks = []
@@ -167,8 +170,8 @@ class SpawnPool():
             # Normalize the container count to its initial capacity by scheduling deletions if we're
             # over or scheduling launches if we're under.
             current = len(diagnosis.living_container_ids)
-            under = xrange(current, self.capacity)
-            over = xrange(self.capacity, current)
+            under = range(current, self.capacity)
+            over = range(self.capacity, current)
 
             if under:
                 app_log.debug("Launching [%i] new containers to populate the pool.", len(under))
