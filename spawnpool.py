@@ -105,10 +105,11 @@ class SpawnPool():
 
         try:
             app_log.info("Releasing container [%s].", container)
-            yield [
+            tasks = [
                 self.spawner.shutdown_notebook_server(container.id),
                 self._proxy_remove(container.path)
             ]
+            yield tasks
             app_log.debug("Container [%s] has been released.", container)
         except Exception as e:
             app_log.error("Unable to release container [%s]: %s", container, e)
@@ -160,12 +161,21 @@ class SpawnPool():
                 app_log.debug("Removing zombie route [%s].", path)
                 tasks.append(self._proxy_remove(path))
 
+            pooled_ids = self._pooled_ids()
             unpooled_stale_routes = [(path, id) for path, id in diagnosis.stale_routes
-                                        if id not in self._pooled_ids()]
+                                        if id not in pooled_ids]
             for path, id in unpooled_stale_routes:
                 app_log.debug("Replacing stale route [%s] and container [%s].", path, id)
                 container = PooledContainer(path=path, id=id)
                 tasks.append(self.release(container, replace_if_room=True))
+
+            # Release containers that are neither routed nor pooled
+            dangling_ids = diagnosis.container_ids.difference(
+                            diagnosis.routed_ids).difference(pooled_ids)
+            for dangling_id in dangling_ids:
+                app_log.debug("Destroying dangling container [%s].", dangling_id)
+                tasks.append(self.spawner.shutdown_notebook_server(dangling_id))
+                tasks.append(self._launch_container())
 
             # Normalize the container count to its initial capacity by scheduling deletions if we're
             # over or scheduling launches if we're under.
@@ -188,6 +198,8 @@ class SpawnPool():
                 except EmptyPoolError:
                     app_log.warning("Unable to shrink: pool is diminished, all containers in use.")
                     break
+
+
 
             yield tasks
 
@@ -375,6 +387,8 @@ class Diagnosis():
         self.stale_routes = []
         self.zombie_routes = []
 
+        self.routed_ids = set()
+
         # Sort Docker results into living and dead containers.
         for container in results["docker"]:
             id = container['Id']
@@ -391,6 +405,9 @@ class Diagnosis():
         for path, route in results["proxy"].items():
             last_activity_s = route.get('last_activity', None)
             container_id = route.get('container_id', None)
+
+            self.routed_ids.add(container_id)
+
             if container_id:
                 result = (path, container_id)
                 if container_id in living_set:
@@ -407,6 +424,8 @@ class Diagnosis():
                 else:
                     # The container doesn't correspond to a living container.
                     self.zombie_routes.append(result)
+
+
 
     @gen.coroutine
     def _proxy_routes(self):

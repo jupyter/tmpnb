@@ -186,14 +186,24 @@ class APIPoolHandler(BaseHandler):
             yield self.pool.heartbeat()
 
         diagnosis = self.pool.diagnosis()
+        yield diagnosis.observe()
         routes = yield diagnosis._proxy_routes()
 
-        print(routes)
+        diagnosisDict = dict(
+            living_container_ids=diagnosis.living_container_ids,
+            stopped_container_ids=diagnosis.stopped_container_ids,
+            zombie_container_ids=diagnosis.zombie_container_ids,
+
+            live_routes=diagnosis.live_routes,
+            stale_routes=diagnosis.stale_routes,
+            zombie_routes=diagnosis.zombie_routes,
+        )
 
         self.write(dict(
             capacity=self.pool.capacity,
             navailable=len(self.pool.available),
             routes=routes,
+            diagnosis=diagnosisDict,
         ))
 
 
