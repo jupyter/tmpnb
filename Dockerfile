@@ -12,4 +12,8 @@ ENV DOCKER_HOST unix://docker.sock
 
 RUN pip install -r requirements.txt
 
-CMD python orchestrate.py
+# Since old instructions list "python orchestrate.py" make sure we
+# direct to python3 underneath
+RUN ln -sf "$( which python3 )" "$( dirname $( which python3 ) )/python"
+
+CMD python3 orchestrate.py
