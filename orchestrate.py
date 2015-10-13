@@ -19,7 +19,15 @@ from tornado import gen, web
 import dockworker
 import spawnpool
 
+
 class BaseHandler(RequestHandler):
+
+    # REGEX to test the path specifies a user container
+    user_path_regex = re.compile("^/?user/\w+")
+
+    def is_user_path(self, path):
+        return path is not None and BaseHandler.user_path_regex.match(path)
+
     def write_error(self, status_code, **kwargs):
         if status_code == 404:
             self.render("error/404.html", status_code = status_code)
@@ -66,7 +74,7 @@ class BaseHandler(RequestHandler):
 
 class LoadingHandler(BaseHandler):
     def get(self, path=None):
-        self.render("loading.html", path=path)
+        self.render("loading.html", is_user_path=self.is_user_path(path))
 
 
 class APIStatsHandler(BaseHandler):
@@ -101,14 +109,9 @@ class SpawnHandler(BaseHandler):
     def get(self, path=None):
         '''Spawns a brand new server'''
         try:
-            if path is None:
-                # No path. Assign a prelaunched container from the pool and redirect to it.
-                # Append self.redirect_uri to the redirect target.
-                container_path = self.pool.acquire().path
-                app_log.info("Allocated [%s] from the pool.", container_path)
+            if self.is_user_path(path):
+                # Path is trying to get back to a previously existing container
 
-                url = "/{}/{}".format(container_path, self.redirect_uri)
-            else:
                 # Split /user/{some_user}/long/url/path and acquire {some_user}
                 path_parts = path.lstrip('/').split('/', 2)
                 user = path_parts[1]
@@ -118,6 +121,21 @@ class SpawnHandler(BaseHandler):
                 yield self.pool.adhoc(user)
 
                 url = path
+            else:
+                # There is no path or it represents a subpath of the notebook server
+                # Assign a prelaunched container from the pool and redirect to it.
+                container_path = self.pool.acquire().path
+                app_log.info("Allocated [%s] from the pool.", container_path)
+
+                # If no path is set, append self.redirect_uri to the redirect target, else
+                # redirect to specified path.
+
+                if path is None:
+                    redirect_path = self.redirect_uri
+                else:
+                    redirect_path = path.lstrip('/')
+
+                url = "/{}/{}".format(container_path, redirect_path)
 
             app_log.debug("Redirecting [%s] -> [%s].", self.request.path, url)
             self.redirect(url, permanent=False)
@@ -252,8 +270,10 @@ default docker bridge. Affects the semantics of container_port and container_ip.
     handlers = [
         (r"/", LoadingHandler),
         (r"/spawn/?(/user/\w+(?:/.*)?)?", SpawnHandler),
+        (r"/spawn/((?:notebooks|tree)(?:/.*)?)", SpawnHandler),
         (r"/api/spawn/?", APISpawnHandler),
         (r"/(user/\w+)(?:/.*)?", LoadingHandler),
+        (r"/((?:notebooks|tree)(?:/.*)?)", LoadingHandler),
         (r"/api/stats/?", APIStatsHandler),
         (r"/stats/?", RedirectHandler, {"url": "/api/stats"}),
         (r"/info/?", InfoHandler)
