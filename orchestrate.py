@@ -240,6 +240,7 @@ If host_network=True, the starting port assigned to notebook servers on the host
     )
     tornado.options.define('container_user', default=None,
         help="User to run container command as"
+    )
     tornado.options.define('host_network', default=False,
         help="""Attaches the containers to the host networking instead of the 
 default docker bridge. Affects the semantics of container_port and container_ip."""
