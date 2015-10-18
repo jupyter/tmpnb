@@ -128,22 +128,15 @@ class SpawnPool():
     @gen.coroutine
     def cleanout(self):
         '''Completely cleanout containers that are part of this pool.'''
-        print("Initial cleanup")
-        diagnosis = Diagnosis(self.max_age,
-                              self.spawner,
-                              self.container_name_pattern,
-                              self.proxy_endpoint,
-                              self.proxy_token)
+        app_log.info("Performing initial pool cleanup")
 
-        yield diagnosis.observe()
-
-        try:
-            containers = yield self.spawner.list_notebook_servers(self.container_name_pattern, all=True)
-            routes = yield diagnosis._proxy_routes()
-            for container in containers:
+        containers = yield self.spawner.list_notebook_servers(self.container_name_pattern, all=True)
+        for container in containers:
+            try:
+                app_log.debug("Clearing old container [%s] from pool", container['Id'])
                 yield self.spawner.shutdown_notebook_server(container['Id'])
-        except Exception as e:
-            print(e)
+            except Exception as e:
+                app_log.warn(e)
 
     @gen.coroutine
     def heartbeat(self):
