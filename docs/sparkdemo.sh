@@ -26,4 +26,5 @@ docker run --net=host -d -e CONFIGPROXY_AUTH_TOKEN=$TOKEN --restart=always \
            --command="/bin/bash -c 'IPYTHON_OPTS=\"notebook --NotebookApp.base_url=/{base_path} --ip=0.0.0.0\" pyspark --packages com.databricks:spark-csv_2.10:1.2.0'" \
            --pool_size=$POOL_SIZE \
            --mem_limit='512m' \
+           --container_ip='0.0.0.0' \
            --cpu_shares=$CPU_SHARES
