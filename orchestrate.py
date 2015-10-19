@@ -315,6 +315,9 @@ def main():
         redirect_uri=opts.redirect_uri.lstrip('/'),
     )
 
+    # Cleanup on a fresh state (likely a restart)
+    ioloop.run_sync(pool.cleanout)
+
     # Synchronously cull any existing, inactive containers, and pre-launch a set number of
     # containers, ready to serve.
     ioloop.run_sync(pool.heartbeat)
