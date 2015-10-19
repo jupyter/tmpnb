@@ -66,15 +66,20 @@ Options:
                                    Use '*' to allow any origin to access.
   --assert_hostname                Verify hostname of Docker daemon. (default
                                    False)
-  --command                        command to run when booting the image. A
-                                   placeholder for base_path should be
-                                   provided. (default ipython notebook --no-
-                                   browser --port {port} --ip=0.0.0.0
+  --command                        Command to run when booting the image. A
+                                   placeholder for  {base_path} should be
+                                   provided. A placeholder for {port} and {ip}
+                                   can be  provided. (default ipython notebook
+                                   --no-browser --port {port} --ip=0.0.0.0
                                    --NotebookApp.base_url=/{base_path})
-  --container_ip                   IP address for containers to bind to
+  --container_ip                   Host IP address for containers to bind to.
+                                   If host_network=True, the IP
+                                   address for notebook servers to bind to.
                                    (default 127.0.0.1)
-  --container_port                 Port for containers to bind to (default
-                                   8888)
+  --container_port                 Within container port for notebook servers
+                                   to bind to.  If host_network=True, the
+                                   starting port assigned to notebook servers
+                                   on the host  network. (default 8888)
   --cpu_shares                     Limit CPU shares, per container
   --cull_period                    Interval (s) for culling idle containers.
                                    (default 600)
@@ -85,6 +90,11 @@ Options:
   --expose_headers                 Sets the Access-Control-Expose-Headers
                                    header.
   --help                           show this help information
+  --host_network                   Attaches the containers to the host
+                                   networking instead of the  default docker
+                                   bridge. Affects the semantics of
+                                   container_port and container_ip. (default
+                                   False)
   --image                          Docker container to spawn for new users.
                                    Must be on the system already (default
                                    jupyter/minimal)

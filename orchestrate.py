@@ -165,20 +165,24 @@ def main():
         help="Timeout (s) for culling idle containers."
     )
     tornado.options.define('container_ip', default='127.0.0.1',
-        help="IP address for containers to bind to"
+        help="""Host IP address for containers to bind to. If host_network=True,
+the host IP address for notebook servers to bind to."""
     )
     tornado.options.define('container_port', default='8888',
-        help="Port for containers to bind to"
+        help="""Within container port for notebook servers to bind to. 
+If host_network=True, the starting port assigned to notebook servers on the host."""
     )
 
     command_default = (
         'ipython notebook --no-browser'
         ' --port {port} --ip=0.0.0.0'
         ' --NotebookApp.base_url=/{base_path}'
+        ' --NotebookApp.port_retries=0'
     )
 
     tornado.options.define('command', default=command_default,
-        help="command to run when booting the image. A placeholder for base_path should be provided."
+        help="""Command to run when booting the image. A placeholder for 
+{base_path} should be provided. A placeholder for {port} and {ip} can be provided."""
     )
     tornado.options.define('port', default=9999,
         help="port for the main server to listen on"
@@ -237,6 +241,10 @@ def main():
     tornado.options.define('container_user', default=None,
         help="User to run container command as"
     )
+    tornado.options.define('host_network', default=False,
+        help="""Attaches the containers to the host networking instead of the 
+default docker bridge. Affects the semantics of container_port and container_ip."""
+    )
 
     tornado.options.parse_command_line()
     opts = tornado.options.options
@@ -269,6 +277,7 @@ def main():
         container_ip=opts.container_ip,
         container_port=opts.container_port,
         container_user=opts.container_user,
+        host_network=opts.host_network,
     )
 
     spawner = dockworker.DockerSpawner(docker_host,
