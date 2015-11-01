@@ -34,7 +34,7 @@ tmpnb: minimal-image tmpnb-image
 dev: cleanup proxy tmpnb open
 
 open:
-	-open http://`echo $(DOCKER_HOST) | cut -d":" -f2`:8000
+	-open http:`echo $(DOCKER_HOST) | cut -d":" -f2`:8000
 
 cleanup:
 	-docker stop `docker ps -aq`
