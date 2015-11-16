@@ -49,6 +49,17 @@ docker run --net=host -d -e CONFIGPROXY_AUTH_TOKEN=$TOKEN \
            jupyter/tmpnb python orchestrate.py --image='jupyter/demo' --command="ipython notebook --NotebookApp.base_url={base_path} --ip=0.0.0.0 --port {port}"
 ```
 
+#### Using [jupyter/docker-stacks](https://github.com/jupyter/docker-stacks) images
+
+When using [jupyter/docker-stacks](https://github.com/jupyter/docker-stacks) images with tmpnb, care has to be taken with the command used to launch the notebook images.  Docker-stacks uses a special shell script to launch the server, which handles launching it as the correct user.  You need to use that script instead of `ipython notebook` or `jupyter notebook` in the `--command` argument.  Here's an example of how this is done to launch the `minimal-notebook` image:
+
+```
+docker run --net=host -d -e CONFIGPROXY_AUTH_TOKEN=$TOKEN \
+           -v /var/run/docker.sock:/docker.sock \
+           jupyter/tmpnb python orchestrate.py --image="docker-stacks/minimal-notebook" \
+           --command="start-notebook.sh \"--NotebookApp.base_url={base_path} --NotebookApp.allow_origin='*' --port={port}\""
+```
+
 #### Options
 
 ```
