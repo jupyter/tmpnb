@@ -11,6 +11,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 import tornado
 import tornado.options
+from tornado import web
 from tornado.log import app_log
 from tornado.web import RequestHandler, HTTPError, RedirectHandler
 
@@ -72,6 +73,19 @@ class BaseHandler(RequestHandler):
     def allow_headers(self):
         return self.settings['allow_headers']
 
+    def get_json_body(self):
+        """Return the body of the request as JSON data."""
+        if not self.request.body:
+            return None
+        body = self.request.body.strip().decode(u'utf-8')
+        try:
+            model = json.loads(body)
+        except Exception:
+            self.log.debug("Bad JSON: %r", body)
+            self.log.error("Couldn't parse JSON", exc_info=True)
+            raise web.HTTPError(400, u'Invalid JSON in body of request')
+        return model
+
 class LoadingHandler(BaseHandler):
     def get(self, path=None):
         self.render("loading.html", is_user_path=self.is_user_path(path))
@@ -101,7 +115,6 @@ class InfoHandler(BaseHandler):
     @property
     def pool(self):
         return self.settings['pool']
-
 
 class SpawnHandler(BaseHandler):
 
@@ -174,6 +187,47 @@ class APISpawnHandler(BaseHandler):
     def pool(self):
         return self.settings['pool']
 
+class APIPoolHandler(BaseHandler):
+    #@web.authenticated
+    @gen.coroutine
+    def post(self):
+        '''Allow updating pool configuration remotely'''
+        # TODO: Auth
+        # TODO: Determine payload format
+        model = self.get_json_body()
+        if model is None:
+            return self.write({'error': 'empty payload'})
+
+        if 'pool' in model and 'capacity' in model['pool']:
+            new_capacity = int(model['pool']['capacity'])
+            self.pool.capacity = new_capacity
+            yield self.pool.heartbeat()
+
+        diagnosis = self.pool.diagnosis()
+        yield diagnosis.observe()
+        routes = yield diagnosis._proxy_routes()
+
+        diagnosisDict = dict(
+            living_container_ids=diagnosis.living_container_ids,
+            stopped_container_ids=diagnosis.stopped_container_ids,
+            zombie_container_ids=diagnosis.zombie_container_ids,
+
+            live_routes=diagnosis.live_routes,
+            stale_routes=diagnosis.stale_routes,
+            zombie_routes=diagnosis.zombie_routes,
+        )
+
+        self.write(dict(
+            capacity=self.pool.capacity,
+            navailable=len(self.pool.available),
+            routes=routes,
+            diagnosis=diagnosisDict,
+        ))
+
+
+    @property
+    def pool(self):
+        return self.settings['pool']
 
 def main():
     tornado.options.define('cull_period', default=600,
@@ -276,7 +330,8 @@ default docker bridge. Affects the semantics of container_port and container_ip.
         (r"/((?:notebooks|tree)(?:/.*)?)", LoadingHandler),
         (r"/api/stats/?", APIStatsHandler),
         (r"/stats/?", RedirectHandler, {"url": "/api/stats"}),
-        (r"/info/?", InfoHandler)
+        (r"/info/?", InfoHandler),
+        (r"/api/pool/1?", APIPoolHandler),
     ]
 
     proxy_token = os.environ['CONFIGPROXY_AUTH_TOKEN']
