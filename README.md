@@ -15,7 +15,7 @@ People have used it at user groups, meetups, and workshops to provide temporary 
 Get Docker, then:
 
 ```
-docker pull jupyter/minimal
+docker pull jupyter/minimal-notebook
 export TOKEN=$( head -c 30 /dev/urandom | xxd -p )
 docker run --net=host -d -e CONFIGPROXY_AUTH_TOKEN=$TOKEN --name=proxy jupyter/configurable-http-proxy --default-target http://127.0.0.1:9999
 docker run --net=host -d -e CONFIGPROXY_AUTH_TOKEN=$TOKEN --name=tmpnb -v /var/run/docker.sock:/docker.sock jupyter/tmpnb
@@ -108,7 +108,7 @@ Options:
                                    False)
   --image                          Docker container to spawn for new users.
                                    Must be on the system already (default
-                                   jupyter/minimal)
+                                   jupyter/minimal-notebook)
   --ip                             ip for the main server to listen on
                                    [default: all interfaces]
   --max_age                        Sets the Access-Control-Max-Age header.
