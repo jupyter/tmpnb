@@ -10,7 +10,7 @@ tmpnb-image: Dockerfile
 images: tmpnb-image demo-image minimal-image
 
 minimal-image:
-	docker pull jupyter/minimal
+	docker pull jupyter/minimal-notebook
 
 demo-image:
 	docker pull jupyter/demo
@@ -28,7 +28,7 @@ tmpnb: minimal-image tmpnb-image
 	docker run --net=host -d -e CONFIGPROXY_AUTH_TOKEN=devtoken \
 		--name=tmpnb \
 		-v /var/run/docker.sock:/docker.sock jupyter/tmpnb python orchestrate.py \
-		--image=jupyter/minimal --cull_timeout=$(CULL_TIMEOUT) --cull_period=$(CULL_PERIOD) \
+		--image=jupyter/minimal-notebook --cull_timeout=$(CULL_TIMEOUT) --cull_period=$(CULL_PERIOD) \
 		--logging=$(LOGGING) --pool_size=$(POOL_SIZE)
 
 dev: cleanup proxy tmpnb open
