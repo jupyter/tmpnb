@@ -37,8 +37,8 @@ open:
 	-open http:`echo $(DOCKER_HOST) | cut -d":" -f2`:8000
 
 cleanup:
-	-docker stop `docker ps -aq`
-	-docker rm   `docker ps -aq`
+	-docker stop `docker ps -aq --filter name=tmpnb --filter name=proxy --filter name=minimal-notebook`
+	-docker rm   `docker ps -aq --filter name=tmpnb --filter name=proxy --filter name=minimal-notebook`
 	-docker images -q --filter "dangling=true" | xargs docker rmi
 
 log-tmpnb:
