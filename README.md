@@ -15,13 +15,10 @@ People have used it at user groups, meetups, and workshops to provide temporary 
 Get Docker, then:
 
 ```
-docker pull jupyter/minimal-notebook
-export TOKEN=$( head -c 30 /dev/urandom | xxd -p )
-docker run --net=host -d -e CONFIGPROXY_AUTH_TOKEN=$TOKEN --name=proxy jupyter/configurable-http-proxy --default-target http://127.0.0.1:9999
-docker run --net=host -d -e CONFIGPROXY_AUTH_TOKEN=$TOKEN --name=tmpnb -v /var/run/docker.sock:/docker.sock jupyter/tmpnb
+make user
 ```
 
-BAM! Visit your host on port 8000 and you have a working tmpnb setup. The ` -v /var/run/docker.sock:/docker.sock` bit causes the orchestrator container to mount the docker client, which allows the orchestrator container to spawn docker containers on the host (see [this article](http://nathanleclaire.com/blog/2014/07/12/10-docker-tips-and-tricks-that-will-make-you-sing-a-whale-song-of-joy/#bind-mount-the-docker-socket-on-docker-run:1765430f0793020845eca6c8326a4e45) for more information).  Note, if you are using boot2docker, then you can find your docker host's ip address by running the following command in your console:
+BAM! Visit your host on port 8000 and you have a working tmpnb setup. If you examine the user target in the Makefile, you will notice the ` -v /var/run/docker.sock:/docker.sock` configuration which causes the orchestrator container to mount the docker client, which allows the orchestrator container to spawn docker containers on the host (see [this article](http://nathanleclaire.com/blog/2014/07/12/10-docker-tips-and-tricks-that-will-make-you-sing-a-whale-song-of-joy/#bind-mount-the-docker-socket-on-docker-run:1765430f0793020845eca6c8326a4e45) for more information).  Note, if you are using boot2docker, then you can find your docker host's ip address by running the following command in your console:
 
 ```
 boot2docker ip
@@ -34,6 +31,8 @@ If it didn't come up, try running `docker ps -a` and `docker logs tmpnb` to help
 If you need to set the `docker-version` or other options, they can be passed to `jupyter/tmpnb` directly:
 
 ```
+make cleanup
+make proxy
 docker run --net=host -d -e CONFIGPROXY_AUTH_TOKEN=$TOKEN -v /var/run/docker.sock:/docker.sock jupyter/tmpnb python orchestrate.py --cull-timeout=60 --docker-version="1.13" --command="jupyter notebook --NotebookApp.base_url={base_path} --ip=0.0.0.0 --port {port}"
 ```
 
