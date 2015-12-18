@@ -31,7 +31,15 @@ tmpnb: minimal-image tmpnb-image
 		--image=jupyter/minimal-notebook --cull_timeout=$(CULL_TIMEOUT) --cull_period=$(CULL_PERIOD) \
 		--logging=$(LOGGING) --pool_size=$(POOL_SIZE)
 
+tmpnb-user: minimal-image tmpnb-image
+	docker run --net=host -d -e CONFIGPROXY_AUTH_TOKEN=devtoken \
+		--name=tmpnb \
+		-v /var/run/docker.sock:/docker.sock jupyter/tmpnb python orchestrate.py \
+		--image=jupyter/minimal-notebook
+
 dev: cleanup proxy tmpnb open
+
+user: cleanup proxy tmpnb-user open
 
 open:
 	-open http:`echo $(DOCKER_HOST) | cut -d":" -f2`:8000
