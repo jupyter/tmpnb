@@ -67,63 +67,69 @@ Usage: orchestrate.py [OPTIONS]
 
 Options:
 
-  --allow_credentials              Sets the Access-Control-Allow-Credentials
+
+  --allow-credentials              Sets the Access-Control-Allow-Credentials
                                    header.
-  --allow_headers                  Sets the Access-Control-Allow-Headers
+  --allow-headers                  Sets the Access-Control-Allow-Headers
                                    header.
-  --allow_methods                  Sets the Access-Control-Allow-Methods
+  --allow-methods                  Sets the Access-Control-Allow-Methods
                                    header.
-  --allow_origin                   Set the Access-Control-Allow-Origin header.
+  --allow-origin                   Set the Access-Control-Allow-Origin header.
                                    Use '*' to allow any origin to access.
-  --assert_hostname                Verify hostname of Docker daemon. (default
+  --assert-hostname                Verify hostname of Docker daemon. (default
                                    False)
   --command                        Command to run when booting the image. A
                                    placeholder for  {base_path} should be
                                    provided. A placeholder for {port} and {ip}
-                                   can be  provided. (default jupyter notebook
+                                   can be provided. (default jupyter notebook
                                    --no-browser --port {port} --ip=0.0.0.0
-                                   --NotebookApp.base_url=/{base_path})
-  --container_ip                   Host IP address for containers to bind to.
-                                   If host_network=True, the IP
-                                   address for notebook servers to bind to.
-                                   (default 127.0.0.1)
-  --container_port                 Within container port for notebook servers
+                                   --NotebookApp.base_url=/{base_path}
+                                   --NotebookApp.port_retries=0)
+  --container-ip                   Host IP address for containers to bind to.
+                                   If host_network=True, the host IP address
+                                   for notebook servers to bind to. (default
+                                   127.0.0.1)
+  --container-port                 Within container port for notebook servers
                                    to bind to.  If host_network=True, the
                                    starting port assigned to notebook servers
-                                   on the host  network. (default 8888)
-  --cpu_shares                     Limit CPU shares, per container
-  --cull_period                    Interval (s) for culling idle containers.
+                                   on the host. (default 8888)
+  --container-user                 User to run container command as
+  --cpu-shares                     Limit CPU shares, per container
+  --cull-period                    Interval (s) for culling idle containers.
                                    (default 600)
-  --cull_timeout                   Timeout (s) for culling idle containers.
+  --cull-timeout                   Timeout (s) for culling idle containers.
                                    (default 3600)
-  --docker_version                 Version of the Docker API to use (default
+  --docker-version                 Version of the Docker API to use (default
                                    auto)
-  --expose_headers                 Sets the Access-Control-Expose-Headers
+  --expose-headers                 Sets the Access-Control-Expose-Headers
                                    header.
-  --help                           show this help information
-  --host_network                   Attaches the containers to the host
+  --host-directories               Mount the specified directory as a data
+                                   volume, multiple         directories can be
+                                   specified by using a comma-delimited string,
+                                   directory         path must provided in full
+  --host-network                   Attaches the containers to the host
                                    networking instead of the  default docker
                                    bridge. Affects the semantics of
                                    container_port and container_ip. (default
                                    False)
   --image                          Docker container to spawn for new users.
                                    Must be on the system already (default
-                                   jupyter/minimal-notebook)
+                                   jupyter/minimal)
   --ip                             ip for the main server to listen on
                                    [default: all interfaces]
-  --max_age                        Sets the Access-Control-Max-Age header.
-  --max_dock_workers               Maximum number of docker workers (default 2)
-  --mem_limit                      Limit on Memory, per container (default
+  --max-age                        Sets the Access-Control-Max-Age header.
+  --max-dock-workers               Maximum number of docker workers (default 2)
+  --mem-limit                      Limit on Memory, per container (default
                                    512m)
-  --pool_name                      Container name fragment used to identity
+  --pool-name                      Container name fragment used to identity
                                    containers that belong to this instance.
-  --pool_size                      Capacity for containers on this system. Will
+  --pool-size                      Capacity for containers on this system. Will
                                    be prelaunched at startup. (default 10)
   --port                           port for the main server to listen on
                                    (default 9999)
-  --redirect_uri                   URI to redirect users to upon initial
+  --redirect-uri                   URI to redirect users to upon initial
                                    notebook launch (default /tree)
-  --static_files                   Static files to extract from the initial
+  --static-files                   Static files to extract from the initial
                                    container launch
 ```
 
