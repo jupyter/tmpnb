@@ -119,11 +119,17 @@ class DockerSpawner():
         volumes = []
         if container_config.host_directories:
             directories = container_config.host_directories.split(",")
-            for index, directory in enumerate(directories):
+            for index, item in enumerate(directories):
+                directory = item.split(":")[0]
+                try:
+                    permissions = item.split(":")[1]
+                except IndexError:
+                    permissions = 'rw'
+
                 volumes.append('/mnt/vol' + str(index))
                 volume_bindings[directory] = {
                     'bind': '/mnt/vol' + str(index),
-                    'mode': 'rw'
+                    'mode': permissions
                 }
 
         host_config = dict(
