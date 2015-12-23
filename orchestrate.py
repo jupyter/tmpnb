@@ -266,7 +266,8 @@ default docker bridge. Affects the semantics of container_port and container_ip.
     tornado.options.define('host_directories', default=None,
         help="""Mount the specified directory as a data volume, multiple
         directories can be specified by using a comma-delimited string, directory
-        path must provided in full (eg: /home/steve/data/:r)""")
+        path must provided in full (eg: /home/steve/data/:r), permissions default to
+        rw""")
 
     tornado.options.parse_command_line()
     opts = tornado.options.options
