@@ -12,7 +12,7 @@ from tornado.log import app_log
 
 ContainerConfig = namedtuple('ContainerConfig', [
     'image', 'command', 'mem_limit', 'cpu_shares', 'container_ip', 
-    'container_port', 'container_user', 'host_network'
+    'container_port', 'container_user', 'host_network', 'host_directories'
 ])
 
 # Number of times to retry API calls before giving up.
@@ -115,9 +115,27 @@ class DockerSpawner():
             rendered_command
         ]
 
+        volume_bindings = {}
+        volumes = []
+        if container_config.host_directories:
+            directories = container_config.host_directories.split(",")
+            for index, item in enumerate(directories):
+                directory = item.split(":")[0]
+                try:
+                    permissions = item.split(":")[1]
+                except IndexError:
+                    permissions = 'rw'
+
+                volumes.append('/mnt/vol' + str(index))
+                volume_bindings[directory] = {
+                    'bind': '/mnt/vol' + str(index),
+                    'mode': permissions
+                }
+
         host_config = dict(
             mem_limit=container_config.mem_limit,
             network_mode='host' if container_config.host_network else 'bridge',
+            binds=volume_bindings
         )
 
         host_config = create_host_config(**host_config)
@@ -128,10 +146,12 @@ class DockerSpawner():
             # Some versions of Docker and docker-py won't cast from string to int
             cpu_shares = int(container_config.cpu_shares)
 
+
         resp = yield self._with_retries(self.docker_client.create_container,
                                         image=container_config.image,
                                         user=container_config.container_user,
                                         command=command,
+                                        volumes=volumes,
                                         host_config=host_config,
                                         cpu_shares=cpu_shares,
                                         name=container_name)

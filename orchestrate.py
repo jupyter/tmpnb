@@ -263,6 +263,11 @@ If host_network=True, the starting port assigned to notebook servers on the host
         help="""Attaches the containers to the host networking instead of the 
 default docker bridge. Affects the semantics of container_port and container_ip."""
     )
+    tornado.options.define('host_directories', default=None,
+        help="""Mount the specified directory as a data volume, multiple
+        directories can be specified by using a comma-delimited string, directory
+        path must provided in full (eg: /home/steve/data/:r), permissions default to
+        rw""")
 
     tornado.options.parse_command_line()
     opts = tornado.options.options
@@ -298,6 +303,7 @@ default docker bridge. Affects the semantics of container_port and container_ip.
         container_port=opts.container_port,
         container_user=opts.container_user,
         host_network=opts.host_network,
+        host_directories=opts.host_directories
     )
 
     spawner = dockworker.DockerSpawner(docker_host,
