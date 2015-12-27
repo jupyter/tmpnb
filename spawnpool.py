@@ -143,7 +143,8 @@ class SpawnPool():
         '''
         Completely cleanout all available containers in the pool and immediately
         schedule their replacement. Useful for refilling the pool with a new 
-        container image while leaving in-use containers untouched.
+        container image while leaving in-use containers untouched. Returns the
+        number of containers drained.
         '''
         app_log.info("Draining available containers from pool")
         tasks = []
@@ -156,6 +157,7 @@ class SpawnPool():
                 # No more free containers left to acquire
                 break
         yield tasks
+        raise gen.Return(len(tasks))
 
     @gen.coroutine
     def heartbeat(self):

@@ -183,8 +183,7 @@ class AdminHandler(RequestHandler):
         if self.admin_token:
             client_token = self.request.headers.get('Authorization')
             if client_token != 'token %s' % self.admin_token:
-                app_log.warn('rejecting admin request with token %s', client_token)
-                app_log.info('admin token: %s', self.admin_token)
+                app_log.warn('Rejecting admin request with token %s', client_token)
                 return self.send_error(401)
         return super(AdminHandler, self).prepare()
 
@@ -196,9 +195,9 @@ class APIPoolHandler(AdminHandler):
     @gen.coroutine
     def delete(self):
         '''Drains available containers from the pool.'''
-        yield self.pool.drain()
-        self.set_status(204)
-        self.finish()
+        n = yield self.pool.drain()
+        app_log.info('Drained pool of %d containers', n)
+        self.finish(dict(drained=n))
 
     @property
     def pool(self):
