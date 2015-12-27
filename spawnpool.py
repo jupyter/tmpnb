@@ -139,6 +139,25 @@ class SpawnPool():
                 app_log.warn(e)
 
     @gen.coroutine
+    def drain(self):
+        '''
+        Completely cleanout all available containers in the pool and immediately
+        schedule their replacement. Useful for refilling the pool with a new 
+        container image while leaving in-use containers untouched.
+        '''
+        app_log.info("Draining available containers from pool")
+        tasks = []
+        while 1:
+            try:
+                pooled = self.acquire()
+                app_log.debug("Releasing container [%s] to drain the pool.", pooled.id)
+                tasks.append(self.release(pooled, True))
+            except EmptyPoolError:
+                # No more free containers left to acquire
+                break
+        yield tasks
+
+    @gen.coroutine
     def heartbeat(self):
         '''Examine the pool for any missing, stopped, or idle containers, and replace them.
 
