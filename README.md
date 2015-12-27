@@ -39,6 +39,14 @@ docker run --net=host -d -e CONFIGPROXY_AUTH_TOKEN=$TOKEN -v /var/run/docker.soc
 
 Note that if you do not pass a value to `docker-version`, tmpnb will automatically use the Docker API version provided by the server.
 
+The tmpnb server has two APIs: a public one that receives HTTP requests under the `/` proxy route and an administrative one available only on the private, localhost interface by default. You can configure the interfaces (`--ip`, `--admin_ip`) and ports (`--port`, `--admin_port`) of both APIs using command line arguments. If you decide to expose the admin API on a public interface, you can protect it by specifying a secret token as an environment variable `ADMIN_AUTH_TOKEN` when starting the `tmpnb` container. Thereafter, all requests made to the admin API must include it in an HTTP header like so:
+
+```
+Authorization: token <secret token here>
+```
+
+You can see the resources available in both APIs in the `orchestrate.py` file, but should  consider both to be unstable.
+
 #### Launching with *your own* Docker images
 
 tmpnb can run any Docker container provided by the `--image` option, so long as the `--command` option tells where the `{base_path}` and `{port}`. Those are literal strings, complete with curly braces that tmpnb will replace with an assigned `base_path` and `port`.
@@ -65,9 +73,12 @@ docker run --net=host -d -e CONFIGPROXY_AUTH_TOKEN=$TOKEN \
 ```
 Usage: orchestrate.py [OPTIONS]
 
-Options:
+orchestrate.py options:
 
-
+  --admin-ip                       ip for the admin server to listen on
+                                   [default: 127.0.0.1] (default 127.0.0.1)
+  --admin-port                     port for the admin server to listen on
+                                   (default 10000)
   --allow-credentials              Sets the Access-Control-Allow-Credentials
                                    header.
   --allow-headers                  Sets the Access-Control-Allow-Headers
@@ -107,6 +118,8 @@ Options:
                                    volume, multiple         directories can be
                                    specified by using a comma-delimited string,
                                    directory         path must provided in full
+                                   (eg: /home/steve/data/:r), permissions
+                                   default to         rw
   --host-network                   Attaches the containers to the host
                                    networking instead of the  default docker
                                    bridge. Affects the semantics of
