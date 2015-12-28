@@ -174,6 +174,34 @@ class APISpawnHandler(BaseHandler):
     def pool(self):
         return self.settings['pool']
 
+class AdminHandler(RequestHandler):
+    def prepare(self):
+        '''
+        Responds with a 401 error if the configured admin auth token is not 
+        present in the request headers.
+        '''
+        if self.admin_token:
+            client_token = self.request.headers.get('Authorization')
+            if client_token != 'token %s' % self.admin_token:
+                app_log.warn('Rejecting admin request with token %s', client_token)
+                return self.send_error(401)
+        return super(AdminHandler, self).prepare()
+
+    @property
+    def admin_token(self):
+        return self.settings['admin_token']
+
+class APIPoolHandler(AdminHandler):
+    @gen.coroutine
+    def delete(self):
+        '''Drains available containers from the pool.'''
+        n = yield self.pool.drain()
+        app_log.info('Drained pool of %d containers', n)
+        self.finish(dict(drained=n))
+
+    @property
+    def pool(self):
+        return self.settings['pool']
 
 def main():
     tornado.options.define('cull_period', default=600,
@@ -207,6 +235,12 @@ If host_network=True, the starting port assigned to notebook servers on the host
     )
     tornado.options.define('ip', default=None,
         help="ip for the main server to listen on [default: all interfaces]"
+    )
+    tornado.options.define('admin_port', default=10000,
+        help="port for the admin server to listen on"
+    )
+    tornado.options.define('admin_ip', default='127.0.0.1',
+        help="ip for the admin server to listen on [default: 127.0.0.1]"
     )
     tornado.options.define('max_dock_workers', default=2,
         help="Maximum number of docker workers"
@@ -281,9 +315,14 @@ default docker bridge. Affects the semantics of container_port and container_ip.
         (r"/((?:notebooks|tree)(?:/.*)?)", LoadingHandler),
         (r"/api/stats/?", APIStatsHandler),
         (r"/stats/?", RedirectHandler, {"url": "/api/stats"}),
-        (r"/info/?", InfoHandler)
+        (r"/info/?", InfoHandler),
     ]
 
+    admin_handlers = [
+        (r"/api/pool/?", APIPoolHandler)
+    ]
+
+    admin_token = os.getenv('ADMIN_AUTH_TOKEN')
     proxy_token = os.environ['CONFIGPROXY_AUTH_TOKEN']
     proxy_endpoint = os.environ.get('CONFIGPROXY_ENDPOINT', "http://127.0.0.1:8001")
     docker_host = os.environ.get('DOCKER_HOST', 'unix://var/run/docker.sock')
@@ -350,6 +389,11 @@ default docker bridge. Affects the semantics of container_port and container_ip.
         redirect_uri=opts.redirect_uri.lstrip('/'),
     )
 
+    admin_settings = dict(
+        pool=pool,
+        admin_token=admin_token
+    )
+
     # Cleanup on a fresh state (likely a restart)
     ioloop.run_sync(pool.cleanout)
 
@@ -372,6 +416,11 @@ default docker bridge. Affects the semantics of container_port and container_ip.
     app_log.info("Listening on {}:{}".format(opts.ip or '*', opts.port))
     application = tornado.web.Application(handlers, **settings)
     application.listen(opts.port, opts.ip)
+
+    app_log.info("Admin listening on {}:{}".format(opts.admin_ip or '*', opts.admin_port))
+    admin_application = tornado.web.Application(admin_handlers, **admin_settings)
+    admin_application.listen(opts.admin_port, opts.admin_ip)
+
     ioloop.start()
 
 if __name__ == "__main__":
