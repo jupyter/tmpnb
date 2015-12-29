@@ -152,7 +152,7 @@ class SpawnPool():
             try:
                 pooled = self.acquire()
                 app_log.debug("Releasing container [%s] to drain the pool.", pooled.id)
-                tasks.append(self.release(pooled, True))
+                tasks.append(self.release(pooled, replace_if_room=False))
             except EmptyPoolError:
                 # No more free containers left to acquire
                 break
