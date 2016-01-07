@@ -251,7 +251,7 @@ If host_network=True, the starting port assigned to notebook servers on the host
     tornado.options.define('cpu_shares', default=None,
         help="Limit CPU shares, per container"
     )
-    tornado.options.define('image', default="jupyter/minimal",
+    tornado.options.define('image', default="jupyter/minimal-notebook",
         help="Docker container to spawn for new users. Must be on the system already"
     )
     tornado.options.define('docker_version', default="auto",
