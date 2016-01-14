@@ -144,6 +144,8 @@ orchestrate.py options:
                                    notebook launch (default /tree)
   --static-files                   Static files to extract from the initial
                                    container launch
+  --user_length                    Length of the unique /user/:id path
+                                   generated per container (default 12)
 ```
 
 #### Development

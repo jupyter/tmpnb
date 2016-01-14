@@ -21,15 +21,15 @@ import dockworker
 AsyncHTTPClient.configure("tornado.curl_httpclient.CurlAsyncHTTPClient")
 
 
-def sample_with_replacement(a, size=12):
+def sample_with_replacement(a, size):
     '''Get a random path. If Python had sampling with replacement built in,
     I would use that. The other alternative is numpy.random.choice, but
     numpy is overkill for this tiny bit of random pathing.'''
-    return "".join([random.choice(a) for x in range(size)])
+    return "".join([random.SystemRandom().choice(a) for x in range(size)])
 
 
-def new_user():
-    return sample_with_replacement(string.ascii_letters + string.digits)
+def new_user(size):
+    return sample_with_replacement(string.ascii_letters + string.digits, size)
 
 
 PooledContainer = namedtuple('PooledContainer', ['id', 'path'])
@@ -52,6 +52,7 @@ class SpawnPool():
                  capacity,
                  max_age,
                  pool_name,
+                 user_length,
                  static_files=None,
                  static_dump_path=os.path.join(os.path.dirname(__file__),
                                                "static")):
@@ -67,6 +68,8 @@ class SpawnPool():
 
         self.proxy_endpoint = proxy_endpoint
         self.proxy_token = proxy_token
+
+        self.user_length = user_length
 
         self.available = deque()
 
@@ -243,7 +246,7 @@ class SpawnPool():
         add it to the pool.'''
 
         if user is None:
-            user = new_user()
+            user = new_user(self.user_length)
 
         path = "user/" + user
 
