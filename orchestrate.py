@@ -48,6 +48,12 @@ class BaseHandler(RequestHandler):
         if self.allow_headers:
             self.set_header("Access-Control-Allow-Headers", self.allow_headers)
 
+        # Confirm the client authorization token if an api token is configured
+        if self.api_token is not None:
+            client_token = self.request.headers.get('Authorization')
+            if client_token != 'token %s' % self.api_token:
+                return self.send_error(401)
+
     @property
     def allow_origin(self):
         return self.settings['allow_origin']
@@ -72,6 +78,10 @@ class BaseHandler(RequestHandler):
     def allow_headers(self):
         return self.settings['allow_headers']
 
+    @property
+    def api_token(self):
+        return self.settings['api_token']
+    
 class LoadingHandler(BaseHandler):
     def get(self, path=None):
         self.render("loading.html", is_user_path=self.is_user_path(path))
@@ -309,26 +319,32 @@ default docker bridge. Affects the semantics of container_port and container_ip.
     tornado.options.parse_command_line()
     opts = tornado.options.options
 
-    handlers = [
-        (r"/", LoadingHandler),
-        (r"/spawn/?(/user/\w+(?:/.*)?)?", SpawnHandler),
-        (r"/spawn/((?:notebooks|tree)(?:/.*)?)", SpawnHandler),
-        (r"/api/spawn/?", APISpawnHandler),
-        (r"/(user/\w+)(?:/.*)?", LoadingHandler),
-        (r"/((?:notebooks|tree)(?:/.*)?)", LoadingHandler),
-        (r"/api/stats/?", APIStatsHandler),
-        (r"/stats/?", RedirectHandler, {"url": "/api/stats"}),
-        (r"/info/?", InfoHandler),
-    ]
-
-    admin_handlers = [
-        (r"/api/pool/?", APIPoolHandler)
-    ]
-
+    api_token = os.getenv('API_AUTH_TOKEN')
     admin_token = os.getenv('ADMIN_AUTH_TOKEN')
     proxy_token = os.environ['CONFIGPROXY_AUTH_TOKEN']
     proxy_endpoint = os.environ.get('CONFIGPROXY_ENDPOINT', "http://127.0.0.1:8001")
     docker_host = os.environ.get('DOCKER_HOST', 'unix://var/run/docker.sock')
+
+    handlers = [
+        (r"/api/spawn/?", APISpawnHandler),
+        (r"/api/stats/?", APIStatsHandler)
+    ]
+
+    # Only add human-facing handlers if there's no spawn API key set
+    if api_token is None:
+        handlers.extend([
+            (r"/", LoadingHandler),
+            (r"/spawn/?(/user/\w+(?:/.*)?)?", SpawnHandler),
+            (r"/spawn/((?:notebooks|tree)(?:/.*)?)", SpawnHandler),
+            (r"/(user/\w+)(?:/.*)?", LoadingHandler),
+            (r"/((?:notebooks|tree)(?:/.*)?)", LoadingHandler),  
+            (r"/stats/?", RedirectHandler, {"url": "/api/stats"}),
+            (r"/info/?", InfoHandler),
+        ])
+
+    admin_handlers = [
+        (r"/api/pool/?", APIPoolHandler)
+    ]
 
     max_age = datetime.timedelta(seconds=opts.cull_timeout)
     pool_name = opts.pool_name
@@ -388,6 +404,7 @@ default docker bridge. Affects the semantics of container_port and container_ip.
         pool=pool,
         autoescape=None,
         proxy_token=proxy_token,
+        api_token=api_token,
         template_path=os.path.join(os.path.dirname(__file__), 'templates'),
         proxy_endpoint=proxy_endpoint,
         redirect_uri=opts.redirect_uri.lstrip('/'),

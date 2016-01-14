@@ -39,13 +39,17 @@ docker run --net=host -d -e CONFIGPROXY_AUTH_TOKEN=$TOKEN -v /var/run/docker.soc
 
 Note that if you do not pass a value to `docker-version`, tmpnb will automatically use the Docker API version provided by the server.
 
-The tmpnb server has two APIs: a public one that receives HTTP requests under the `/` proxy route and an administrative one available only on the private, localhost interface by default. You can configure the interfaces (`--ip`, `--admin_ip`) and ports (`--port`, `--admin_port`) of both APIs using command line arguments. If you decide to expose the admin API on a public interface, you can protect it by specifying a secret token as an environment variable `ADMIN_AUTH_TOKEN` when starting the `tmpnb` container. Thereafter, all requests made to the admin API must include it in an HTTP header like so:
+The tmpnb server has two APIs: a public one that receives HTTP requests under the `/` proxy route and an administrative one available only on the private, localhost interface by default. You can configure the interfaces (`--ip`, `--admin_ip`) and ports (`--port`, `--admin_port`) of both APIs using command line arguments. 
+
+If you decide to expose the admin API on a public interface, you can protect it by specifying a secret token in the environment variable `ADMIN_AUTH_TOKEN` when starting the `tmpnb` container. Thereafter, all requests made to the admin API must include it in an HTTP header like so:
 
 ```
-Authorization: token <secret token here>
+Authorization: token <admin secret token here>
 ```
 
-You can see the resources available in both APIs in the `orchestrate.py` file, but should  consider both to be unstable.
+Likewise, if you only want to allow programmatic access to your tmpnb cluster by select clients, you can specify a separate secret token in the environment variable `API_AUTH_TOKEN` when starting the `tmpnb` container. All requests made to the public API must include it in an HTTP header in the same manner as depicted for the admin token above. Note that when this token is set, only the `/api/*` resources of the tmpnb server are available. All human-facing paths are disabled.
+
+If you want to see the resources available in both the admin and user APIs, look at the handler paths registered in the `orchestrate.py` file. You should consider both APIs to be unstable.
 
 #### Launching with *your own* Docker images
 
