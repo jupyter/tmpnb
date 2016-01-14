@@ -302,6 +302,9 @@ default docker bridge. Affects the semantics of container_port and container_ip.
         directories can be specified by using a comma-delimited string, directory
         path must provided in full (eg: /home/steve/data/:r), permissions default to
         rw""")
+    tornado.options.define('user_length', default=12,
+        help="Length of the unique /user/:id path generated per container"
+    )
 
     tornado.options.parse_command_line()
     opts = tornado.options.options
@@ -363,6 +366,7 @@ default docker bridge. Affects the semantics of container_port and container_ip.
                                static_files=opts.static_files,
                                static_dump_path=static_path,
                                pool_name=pool_name,
+                               user_length=opts.user_length
     )
 
     ioloop = tornado.ioloop.IOLoop().instance()
