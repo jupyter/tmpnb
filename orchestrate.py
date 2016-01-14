@@ -385,7 +385,7 @@ default docker bridge. Affects the semantics of container_port and container_ip.
                                user_length=opts.user_length
     )
 
-    ioloop = tornado.ioloop.IOLoop().instance()
+    ioloop = tornado.ioloop.IOLoop().current()
 
     settings = dict(
         default_handler_class=BaseHandler,
