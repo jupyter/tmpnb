@@ -47,13 +47,15 @@ class BaseHandler(RequestHandler):
             self.set_header("Access-Control-Allow-Methods", self.allow_methods)
         if self.allow_headers:
             self.set_header("Access-Control-Allow-Headers", self.allow_headers)
-
+    
+    def get_current_user(self):
+        if self.api_token is None:
+            return 'authorized'
         # Confirm the client authorization token if an api token is configured
-        if self.api_token is not None:
-            client_token = self.request.headers.get('Authorization')
-            if client_token != 'token %s' % self.api_token:
-                return self.send_error(401)
-
+        client_token = self.request.headers.get('Authorization')
+        if client_token == 'token %s' % self.api_token:
+            return 'authorized'
+    
     @property
     def allow_origin(self):
         return self.settings['allow_origin']
@@ -167,7 +169,8 @@ class SpawnHandler(BaseHandler):
 
 
 class APISpawnHandler(BaseHandler):
-
+    
+    @web.authenticated
     @gen.coroutine
     def post(self):
         '''Spawns a brand new server programatically'''
@@ -185,23 +188,25 @@ class APISpawnHandler(BaseHandler):
         return self.settings['pool']
 
 class AdminHandler(RequestHandler):
-    def prepare(self):
-        '''
-        Responds with a 401 error if the configured admin auth token is not 
-        present in the request headers.
-        '''
-        if self.admin_token:
-            client_token = self.request.headers.get('Authorization')
-            if client_token != 'token %s' % self.admin_token:
-                app_log.warn('Rejecting admin request with token %s', client_token)
-                return self.send_error(401)
-        return super(AdminHandler, self).prepare()
+    
+    def get_current_user(self):
+        """Check admin API token, if any"""
+        if not self.admin_token:
+            return 'authorized'
+        
+        client_token = self.request.headers.get('Authorization')
+        if client_token != 'token %s' % self.admin_token:
+            app_log.warn('Rejecting admin request with token %s', client_token)
+            return
+        else:
+            return 'authorized'
 
     @property
     def admin_token(self):
         return self.settings['admin_token']
 
 class APIPoolHandler(AdminHandler):
+    @web.authenticated
     @gen.coroutine
     def delete(self):
         '''Drains available containers from the pool.'''
@@ -327,7 +332,8 @@ default docker bridge. Affects the semantics of container_port and container_ip.
 
     handlers = [
         (r"/api/spawn/?", APISpawnHandler),
-        (r"/api/stats/?", APIStatsHandler)
+        (r"/api/stats/?", APIStatsHandler),
+        (r"/stats/?", RedirectHandler, {"url": "/api/stats"}),
     ]
 
     # Only add human-facing handlers if there's no spawn API key set
@@ -337,8 +343,7 @@ default docker bridge. Affects the semantics of container_port and container_ip.
             (r"/spawn/?(/user/\w+(?:/.*)?)?", SpawnHandler),
             (r"/spawn/((?:notebooks|tree)(?:/.*)?)", SpawnHandler),
             (r"/(user/\w+)(?:/.*)?", LoadingHandler),
-            (r"/((?:notebooks|tree)(?:/.*)?)", LoadingHandler),  
-            (r"/stats/?", RedirectHandler, {"url": "/api/stats"}),
+            (r"/((?:notebooks|tree)(?:/.*)?)", LoadingHandler),
             (r"/info/?", InfoHandler),
         ])
 
