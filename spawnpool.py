@@ -204,8 +204,8 @@ class SpawnPool():
             # Normalize the container count to its initial capacity by scheduling deletions if we're
             # over or scheduling launches if we're under.
             current = len(diagnosis.living_container_ids)
-            under = xrange(current, self.capacity)
-            over = xrange(self.capacity, current)
+            under = range(current, self.capacity)
+            over = range(self.capacity, current)
 
             if under:
                 app_log.debug("Launching [%i] new containers to populate the pool.", len(under))
