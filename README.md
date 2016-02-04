@@ -37,7 +37,7 @@ docker run --net=host -d -e CONFIGPROXY_AUTH_TOKEN=$TOKEN -v /var/run/docker.soc
 
 Note that if you do not pass a value to `docker-version`, tmpnb will automatically use the Docker API version provided by the server.
 
-The tmpnb server has two APIs: a public one that receives HTTP requests under the `/` proxy route and an administrative one available only on the private, localhost interface by default. You can configure the interfaces (`--ip`, `--admin_ip`) and ports (`--port`, `--admin_port`) of both APIs using command line arguments. 
+The tmpnb server has two APIs: a public one that receives HTTP requests under the `/` proxy route and an administrative one available only on the private, localhost interface by default. You can configure the interfaces (`--ip`, `--admin_ip`) and ports (`--port`, `--admin_port`) of both APIs using command line arguments.
 
 If you decide to expose the admin API on a public interface, you can protect it by specifying a secret token in the environment variable `ADMIN_AUTH_TOKEN` when starting the `tmpnb` container. Thereafter, all requests made to the admin API must include it in an HTTP header like so:
 
@@ -61,13 +61,20 @@ docker run --net=host -d -e CONFIGPROXY_AUTH_TOKEN=$TOKEN \
 
 #### Using [jupyter/docker-stacks](https://github.com/jupyter/docker-stacks) images
 
-When using [jupyter/docker-stacks](https://github.com/jupyter/docker-stacks) images with tmpnb, care has to be taken with the command used to launch the notebook images.  Docker-stacks uses a special shell script to launch the server, which handles launching it as the correct user.  You need to use that script instead of `ipython notebook` or `jupyter notebook` in the `--command` argument.  Here's an example of how this is done to launch the `minimal-notebook` image:
+When using the latest [jupyter/docker-stacks](https://github.com/jupyter/docker-stacks) images with tmpnb, you can use the `start-notebook.sh` script or invoke the `jupyter notebook` command directly to run your notebook servers as user `jovyan`. Substitute your desired docker-stacks image name in the command below.
 
-```
-docker run --net=host -d -e CONFIGPROXY_AUTH_TOKEN=$TOKEN \
-           -v /var/run/docker.sock:/docker.sock \
-           jupyter/tmpnb python orchestrate.py --image="docker-stacks/minimal-notebook" \
-           --command="start-notebook.sh \"--NotebookApp.base_url={base_path} --NotebookApp.allow_origin='*' --port={port}\""
+```bash
+docker run -d \
+    --net=host \
+    -e CONFIGPROXY_AUTH_TOKEN=$TOKEN \
+    -v /var/run/docker.sock:/docker.sock \
+    jupyter/tmpnb \
+    python orchestrate.py --image='jupyter/minimal-notebook' \
+        --command='start-notebook.sh \
+            "--NotebookApp.base_url={base_path} \
+            --ip=0.0.0.0 \
+            --port={port} \
+            --NotebookApp.trust_xheaders=True"'
 ```
 
 #### Options
