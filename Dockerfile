@@ -1,4 +1,4 @@
-FROM ubuntu:14.04
+FROM python:3.4-wheezy
 
 RUN apt-get update && apt-get upgrade -y && apt-get install python-pip python python-dev libcurl4-openssl-dev -y
 RUN pip install --upgrade pip
