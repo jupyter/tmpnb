@@ -135,7 +135,8 @@ class DockerSpawner():
         host_config = dict(
             mem_limit=container_config.mem_limit,
             network_mode='host' if container_config.host_network else 'bridge',
-            binds=volume_bindings
+            binds=volume_bindings,
+            port_bindings=port_bindings
         )
 
         host_config = create_host_config(**host_config)
@@ -164,8 +165,7 @@ class DockerSpawner():
         app_log.info("Created container {}".format(container_id))
 
         yield self._with_retries(self.docker_client.start,
-                                 container_id,
-                                 port_bindings=port_bindings)
+                                 container_id)
 
         if container_config.host_network:
             host_port = port
