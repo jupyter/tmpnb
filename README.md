@@ -123,6 +123,10 @@ orchestrate.py options:
                                    auto)
   --expose-headers                 Sets the Access-Control-Expose-Headers
                                    header.
+  --extra-hosts                    Extra hosts for the containers, multiple
+                                   hosts can be specified         by using a
+                                   comma-delimited string, specified in the
+                                   form hostname:IP (default [])
   --host-directories               Mount the specified directory as a data
                                    volume, multiple         directories can be
                                    specified by using a comma-delimited string,
