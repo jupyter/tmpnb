@@ -320,6 +320,9 @@ default docker bridge. Affects the semantics of container_port and container_ip.
     tornado.options.define('user_length', default=12,
         help="Length of the unique /user/:id path generated per container"
     )
+    tornado.options.define('extra_hosts', default=[], multiple=True,
+        help="""Extra hosts for the containers, multiple hosts can be specified
+        by using a comma-delimited string, specified in the form hostname:IP""")
 
     tornado.options.parse_command_line()
     opts = tornado.options.options
@@ -366,7 +369,8 @@ default docker bridge. Affects the semantics of container_port and container_ip.
         container_port=opts.container_port,
         container_user=opts.container_user,
         host_network=opts.host_network,
-        host_directories=opts.host_directories
+        host_directories=opts.host_directories,
+        extra_hosts=opts.extra_hosts
     )
 
     spawner = dockworker.DockerSpawner(docker_host,
