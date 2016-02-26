@@ -1,5 +1,5 @@
 tornado==4.3.0
-docker-py==1.7.1
+docker-py==1.7.2
 pycurl==7.43.0
 futures==3.0.5
 pytz==2015.7
