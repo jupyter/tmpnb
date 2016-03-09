@@ -11,7 +11,7 @@ from tornado import gen, web
 from tornado.log import app_log
 
 ContainerConfig = namedtuple('ContainerConfig', [
-    'image', 'command', 'mem_limit', 'cpu_shares', 'container_ip', 
+    'image', 'command', 'mem_limit', 'cpu_shares', 'container_ip',
     'container_port', 'container_user', 'host_network', 'host_directories',
     'extra_hosts'
 ])
@@ -132,6 +132,7 @@ class DockerSpawner():
                     'bind': '/mnt/vol' + str(index),
                     'mode': permissions
                 }
+        app_log.debug('=======>' + base_path)
 
         extra_hosts = dict(map(lambda h: tuple(h.split(':')),
                                container_config.extra_hosts))
@@ -145,7 +146,7 @@ class DockerSpawner():
         )
 
         host_config = create_host_config(**host_config)
-        
+
         cpu_shares = None
 
         if container_config.cpu_shares:
