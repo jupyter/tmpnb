@@ -47,7 +47,7 @@ class BaseHandler(RequestHandler):
             self.set_header("Access-Control-Allow-Methods", self.allow_methods)
         if self.allow_headers:
             self.set_header("Access-Control-Allow-Headers", self.allow_headers)
-    
+
     def get_current_user(self):
         if self.api_token is None:
             return 'authorized'
@@ -55,7 +55,7 @@ class BaseHandler(RequestHandler):
         client_token = self.request.headers.get('Authorization')
         if client_token == 'token %s' % self.api_token:
             return 'authorized'
-    
+
     @property
     def allow_origin(self):
         return self.settings['allow_origin']
@@ -83,7 +83,7 @@ class BaseHandler(RequestHandler):
     @property
     def api_token(self):
         return self.settings['api_token']
-    
+
 class LoadingHandler(BaseHandler):
     def get(self, path=None):
         self.render("loading.html", is_user_path=self.is_user_path(path))
@@ -169,7 +169,7 @@ class SpawnHandler(BaseHandler):
 
 
 class APISpawnHandler(BaseHandler):
-    
+
     @web.authenticated
     @gen.coroutine
     def post(self):
@@ -188,12 +188,12 @@ class APISpawnHandler(BaseHandler):
         return self.settings['pool']
 
 class AdminHandler(RequestHandler):
-    
+
     def get_current_user(self):
         """Check admin API token, if any"""
         if not self.admin_token:
             return 'authorized'
-        
+
         client_token = self.request.headers.get('Authorization')
         if client_token != 'token %s' % self.admin_token:
             app_log.warn('Rejecting admin request with token %s', client_token)
@@ -230,7 +230,7 @@ def main():
 the host IP address for notebook servers to bind to."""
     )
     tornado.options.define('container_port', default='8888',
-        help="""Within container port for notebook servers to bind to. 
+        help="""Within container port for notebook servers to bind to.
 If host_network=True, the starting port assigned to notebook servers on the host."""
     )
 
@@ -242,7 +242,7 @@ If host_network=True, the starting port assigned to notebook servers on the host
     )
 
     tornado.options.define('command', default=command_default,
-        help="""Command to run when booting the image. A placeholder for 
+        help="""Command to run when booting the image. A placeholder for
 {base_path} should be provided. A placeholder for {port} and {ip} can be provided."""
     )
     tornado.options.define('port', default=9999,
@@ -309,7 +309,7 @@ If host_network=True, the starting port assigned to notebook servers on the host
         help="User to run container command as"
     )
     tornado.options.define('host_network', default=False,
-        help="""Attaches the containers to the host networking instead of the 
+        help="""Attaches the containers to the host networking instead of the
 default docker bridge. Affects the semantics of container_port and container_ip."""
     )
     tornado.options.define('host_directories', default=None,
@@ -344,9 +344,9 @@ default docker bridge. Affects the semantics of container_port and container_ip.
         handlers.extend([
             (r"/", LoadingHandler),
             (r"/spawn/?(/user/\w+(?:/.*)?)?", SpawnHandler),
-            (r"/spawn/((?:notebooks|tree)(?:/.*)?)", SpawnHandler),
+            (r"/spawn/((?:notebooks|tree|files)(?:/.*)?)", SpawnHandler),
             (r"/(user/\w+)(?:/.*)?", LoadingHandler),
-            (r"/((?:notebooks|tree)(?:/.*)?)", LoadingHandler),
+            (r"/((?:notebooks|tree|files)(?:/.*)?)", LoadingHandler),
             (r"/info/?", InfoHandler),
         ])
 
