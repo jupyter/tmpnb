@@ -1,7 +1,5 @@
 ## tmpnb, the temporary notebook service
 
-[![Gitter](https://badges.gitter.im/Join Chat.svg)](https://gitter.im/jupyter/tmpnb?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
-
 Launches "temporary" Jupyter notebook servers.
 
 ![tmpnb architecture](https://cloud.githubusercontent.com/assets/836375/5911140/c53e3978-a587-11e4-86a5-695469ef23a5.png)
