@@ -11,7 +11,7 @@ from tornado import gen, web
 from tornado.log import app_log
 
 ContainerConfig = namedtuple('ContainerConfig', [
-    'image', 'command', 'mem_limit', 'cpu_shares', 'container_ip', 
+    'image', 'command', 'mem_limit', 'cpu_quota', 'cpu_shares', 'container_ip',
     'container_port', 'container_user', 'host_network', 'host_directories',
     'extra_hosts'
 ])
@@ -141,7 +141,8 @@ class DockerSpawner():
             network_mode='host' if container_config.host_network else 'bridge',
             binds=volume_bindings,
             port_bindings=port_bindings,
-            extra_hosts=extra_hosts
+            extra_hosts=extra_hosts,
+            cpu_quota=container_config.cpu_quota,
         )
 
         host_config = create_host_config(**host_config)
