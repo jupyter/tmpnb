@@ -263,8 +263,17 @@ If host_network=True, the starting port assigned to notebook servers on the host
     tornado.options.define('mem_limit', default="512m",
         help="Limit on Memory, per container"
     )
-    tornado.options.define('cpu_shares', default=None,
+    tornado.options.define('cpu_shares', default=None, type=int,
         help="Limit CPU shares, per container"
+    )
+    tornado.options.define('cpu_quota', default=None, type=int,
+        help=u"""Limit CPU quota, per container.
+        
+        Units are CPU-µs per 100ms, so 1 CPU/container would be:
+        
+            --cpu-quota=100000
+        
+        """
     )
     tornado.options.define('image', default="jupyter/minimal-notebook",
         help="Docker container to spawn for new users. Must be on the system already"
@@ -364,6 +373,7 @@ default docker bridge. Affects the semantics of container_port and container_ip.
         image=opts.image,
         command=opts.command,
         mem_limit=opts.mem_limit,
+        cpu_quota=opts.cpu_quota,
         cpu_shares=opts.cpu_shares,
         container_ip=opts.container_ip,
         container_port=opts.container_port,
