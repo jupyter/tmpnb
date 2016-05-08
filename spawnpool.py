@@ -20,6 +20,7 @@ import dockworker
 
 AsyncHTTPClient.configure("tornado.curl_httpclient.CurlAsyncHTTPClient")
 
+_date_fmt = '%Y-%m-%dT%H:%M:%S.%fZ'
 
 def sample_with_replacement(a, size):
     '''Get a random path. If Python had sampling with replacement built in,
@@ -50,6 +51,7 @@ class SpawnPool():
                  spawner,
                  container_config,
                  capacity,
+                 max_idle,
                  max_age,
                  pool_name,
                  user_length,
@@ -61,6 +63,7 @@ class SpawnPool():
         self.spawner = spawner
         self.container_config = container_config
         self.capacity = capacity
+        self.max_idle = max_idle
         self.max_age = max_age
 
         self.pool_name = pool_name
@@ -177,7 +180,8 @@ class SpawnPool():
 
             app_log.debug("Heartbeat begun. Measuring current state.")
 
-            diagnosis = Diagnosis(self.max_age,
+            diagnosis = Diagnosis(self.max_idle,
+                                  self.max_age,
                                   self.spawner,
                                   self.container_name_pattern,
                                   self.proxy_endpoint,
@@ -276,6 +280,7 @@ class SpawnPool():
         body = json.dumps({
             "target": "http://{}:{}".format(host_ip, host_port),
             "container_id": container_id,
+            "started": datetime.utcnow().strftime(_date_fmt),
         })
 
         app_log.debug("Proxying path [%s] to port [%s].", path, host_port)
@@ -383,12 +388,13 @@ class Diagnosis():
     correct them. This includes zombie containers, containers that are running but not routed in the
     proxy, proxy routes that exist without a corresponding container, or other strange conditions.'''
 
-    def __init__(self, cull_time, spawner, name_pattern, proxy_endpoint, proxy_token):
+    def __init__(self, cull_idle, cull_max_age, spawner, name_pattern, proxy_endpoint, proxy_token):
         self.spawner = spawner
         self.name_pattern = name_pattern
         self.proxy_endpoint = proxy_endpoint
         self.proxy_token = proxy_token
-        self.cull_time = cull_time
+        self.cull_idle = cull_idle
+        self.cull_max_age = cull_max_age
 
     @gen.coroutine
     def observe(self):
@@ -418,24 +424,31 @@ class Diagnosis():
             else:
                 self.stopped_container_ids.append(id)
 
-        cutoff = datetime.utcnow() - self.cull_time
+        idle_cutoff = datetime.utcnow() - self.cull_idle
+        started_cutoff = datetime.utcnow() - self.cull_max_age
 
         # Sort proxy routes into living, stale, and zombie routes.
         living_set = set(self.living_container_ids)
         for path, route in results["proxy"].items():
             last_activity_s = route.get('last_activity', None)
+            started_s = route.get('started', None)
             container_id = route.get('container_id', None)
             if container_id:
                 result = (path, container_id)
                 if container_id in living_set:
                     try:
-                        last_activity = datetime.strptime(last_activity_s, '%Y-%m-%dT%H:%M:%S.%fZ')
+                        last_activity = datetime.strptime(last_activity_s, _date_fmt)
+                        started = datetime.strptime(started_s, _date_fmt)
 
                         self.routes.add(result)
-                        if last_activity >= cutoff:
-                            self.live_routes.append(result)
-                        else:
+                        if last_activity < idle_cutoff:
+                            app_log.info("Culling %s, idle since %s", path, last_activity)
                             self.stale_routes.append(result)
+                        elif started < started_cutoff:
+                            app_log.info("Culling %s, up since %s", path, started)
+                            self.stale_routes.append(result)
+                        else:
+                            self.live_routes.append(result)
                     except ValueError as e:
                         app_log.warning("Ignoring a proxy route with an unparsable activity date: %s", e)
                 else:

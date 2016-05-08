@@ -225,6 +225,15 @@ def main():
     tornado.options.define('cull_timeout', default=3600,
         help="Timeout (s) for culling idle containers."
     )
+    tornado.options.define('cull_max', default=14400,
+        help="""Maximum age of a container (s), regardless of activity.
+        
+        Default: 14400 (4 hours)
+        
+        A container that has been running for this long will be culled,
+        even if it is not idle.
+        """
+    )
     tornado.options.define('container_ip', default='127.0.0.1',
         help="""Host IP address for containers to bind to. If host_network=True,
 the host IP address for notebook servers to bind to."""
@@ -363,6 +372,7 @@ default docker bridge. Affects the semantics of container_port and container_ip.
         (r"/api/pool/?", APIPoolHandler)
     ]
 
+    max_idle = datetime.timedelta(seconds=opts.cull_timeout)
     max_age = datetime.timedelta(seconds=opts.cull_timeout)
     pool_name = opts.pool_name
     if pool_name is None:
@@ -397,6 +407,7 @@ default docker bridge. Affects the semantics of container_port and container_ip.
                                spawner=spawner,
                                container_config=container_config,
                                capacity=opts.pool_size,
+                               max_idle=max_idle,
                                max_age=max_age,
                                static_files=opts.static_files,
                                static_dump_path=static_path,
