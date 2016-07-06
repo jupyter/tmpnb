@@ -85,3 +85,9 @@ the Docker images run underneath can have their own constraints for a subuser (J
 
 There is no authentication. JupyterHub is your pal there. It may be worth speccing out an auth system like how @parente's [mostly-tmpnb](https://github.com/parente/mostly-tmpnb) works.
 
+### Is there an estimate of system limits?
+
+While many factors can impact system limits, we tested the system limit on one
+of the hosts and we think that 1000 simultaneous users is possible (per node).
+See [issue 46](https://github.com/jupyter/tmpnb/issues/46) for additional
+information.
