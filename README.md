@@ -174,3 +174,9 @@ cd tmpnb
 # NOTE: stops and deletes all containers
 make dev
 ```
+
+#### Troubleshooting
+
+If you are receiving 500 errors after changing the proxy port, make sure
+that you are using the correct internal port (proxy port+1 unless you
+specify it otherwise).
