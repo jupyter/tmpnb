@@ -80,6 +80,35 @@ docker run -d \
 ```
 Usage: orchestrate.py [OPTIONS]
 
+Options:
+
+  --help                           show this help information
+
+tornado/log.py options:
+
+  --log-file-max-size              max size of log files before rollover
+                                   (default 100000000)
+  --log-file-num-backups           number of log files to keep (default 10)
+  --log-file-prefix=PATH           Path prefix for log files. Note that if you
+                                   are running multiple tornado processes,
+                                   log_file_prefix must be different for each
+                                   of them (e.g. include the port number)
+  --log-rotate-interval            The interval value of timed rotating
+                                   (default 1)
+  --log-rotate-mode                The mode of rotating files(time or size)
+                                   (default size)
+  --log-rotate-when                specify the type of TimedRotatingFileHandler
+                                   interval other options:('S', 'M', 'H', 'D',
+                                   'W0'-'W6') (default midnight)
+  --log-to-stderr                  Send log output to stderr (colorized if
+                                   possible). By default use stderr if
+                                   --log_file_prefix is not set and no other
+                                   logging is configured.
+  --logging=debug|info|warning|error|none
+                                   Set the Python log level. If 'none', tornado
+                                   won't touch the logging configuration.
+                                   (default info)
+
 orchestrate.py options:
 
   --admin-ip                       ip for the admin server to listen on
@@ -97,7 +126,7 @@ orchestrate.py options:
   --assert-hostname                Verify hostname of Docker daemon. (default
                                    False)
   --command                        Command to run when booting the image. A
-                                   placeholder for  {base_path} should be
+                                   placeholder for {base_path} should be
                                    provided. A placeholder for {port} and {ip}
                                    can be provided. (default jupyter notebook
                                    --no-browser --port {port} --ip=0.0.0.0
@@ -108,11 +137,21 @@ orchestrate.py options:
                                    for notebook servers to bind to. (default
                                    127.0.0.1)
   --container-port                 Within container port for notebook servers
-                                   to bind to.  If host_network=True, the
+                                   to bind to. If host_network=True, the
                                    starting port assigned to notebook servers
                                    on the host. (default 8888)
   --container-user                 User to run container command as
+  --cpu-quota                      Limit CPU quota, per container.
+                                   Units are CPU-µs per 100ms, so 1
+                                   CPU/container would be:
+                                   --cpu-quota=100000
   --cpu-shares                     Limit CPU shares, per container
+  --cull-max                       Maximum age of a container (s), regardless
+                                   of activity.                  Default: 14400
+                                   (4 hours)                  A container that
+                                   has been running for this long will be
+                                   culled,         even if it is not idle.
+                                   (default 14400)
   --cull-period                    Interval (s) for culling idle containers.
                                    (default 600)
   --cull-timeout                   Timeout (s) for culling idle containers.
@@ -132,13 +171,13 @@ orchestrate.py options:
                                    (eg: /home/steve/data/:r), permissions
                                    default to         rw
   --host-network                   Attaches the containers to the host
-                                   networking instead of the  default docker
+                                   networking instead of the default docker
                                    bridge. Affects the semantics of
                                    container_port and container_ip. (default
                                    False)
   --image                          Docker container to spawn for new users.
                                    Must be on the system already (default
-                                   jupyter/minimal)
+                                   jupyter/minimal-notebook)
   --ip                             ip for the main server to listen on
                                    [default: all interfaces]
   --max-age                        Sets the Access-Control-Max-Age header.
@@ -155,7 +194,7 @@ orchestrate.py options:
                                    notebook launch (default /tree)
   --static-files                   Static files to extract from the initial
                                    container launch
-  --user_length                    Length of the unique /user/:id path
+  --user-length                    Length of the unique /user/:id path
                                    generated per container (default 12)
 ```
 

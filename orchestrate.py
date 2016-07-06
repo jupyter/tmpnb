@@ -5,6 +5,7 @@ import datetime
 import json
 import os
 import re
+from textwrap import dedent
 import uuid
 
 from concurrent.futures import ThreadPoolExecutor
@@ -226,13 +227,14 @@ def main():
         help="Timeout (s) for culling idle containers."
     )
     tornado.options.define('cull_max', default=14400,
-        help="""Maximum age of a container (s), regardless of activity.
-        
+        help=dedent("""
+        Maximum age of a container (s), regardless of activity.
+
         Default: 14400 (4 hours)
-        
+
         A container that has been running for this long will be culled,
         even if it is not idle.
-        """
+        """)
     )
     tornado.options.define('container_ip', default='127.0.0.1',
         help="""Host IP address for containers to bind to. If host_network=True,
@@ -276,13 +278,14 @@ If host_network=True, the starting port assigned to notebook servers on the host
         help="Limit CPU shares, per container"
     )
     tornado.options.define('cpu_quota', default=None, type=int,
-        help=u"""Limit CPU quota, per container.
+        help=dedent("""
+        Limit CPU quota, per container.
         
         Units are CPU-µs per 100ms, so 1 CPU/container would be:
         
             --cpu-quota=100000
         
-        """
+        """)
     )
     tornado.options.define('image', default="jupyter/minimal-notebook",
         help="Docker container to spawn for new users. Must be on the system already"
@@ -331,16 +334,18 @@ If host_network=True, the starting port assigned to notebook servers on the host
 default docker bridge. Affects the semantics of container_port and container_ip."""
     )
     tornado.options.define('host_directories', default=None,
-        help="""Mount the specified directory as a data volume, multiple
+        help=dedent("""
+        Mount the specified directory as a data volume, multiple
         directories can be specified by using a comma-delimited string, directory
         path must provided in full (eg: /home/steve/data/:r), permissions default to
-        rw""")
+        rw"""))
     tornado.options.define('user_length', default=12,
         help="Length of the unique /user/:id path generated per container"
     )
     tornado.options.define('extra_hosts', default=[], multiple=True,
-        help="""Extra hosts for the containers, multiple hosts can be specified
-        by using a comma-delimited string, specified in the form hostname:IP""")
+        help=dedent("""
+        Extra hosts for the containers, multiple hosts can be specified
+        by using a comma-delimited string, specified in the form hostname:IP"""))
 
     tornado.options.parse_command_line()
     opts = tornado.options.options

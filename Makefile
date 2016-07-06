@@ -1,8 +1,10 @@
 # Configuration parameters
 CULL_PERIOD ?= 30
 CULL_TIMEOUT ?= 60
+CULL_MAX ?= 120
 LOGGING ?= debug
 POOL_SIZE ?= 5
+DOCKER_HOST ?= 127.0.0.1
 
 tmpnb-image: Dockerfile
 	docker build -t jupyter/tmpnb .
@@ -29,7 +31,7 @@ tmpnb: minimal-image tmpnb-image
 		--name tmpnb \
 		-v /var/run/docker.sock:/docker.sock jupyter/tmpnb python orchestrate.py \
 		--image=jupyter/minimal-notebook --cull_timeout=$(CULL_TIMEOUT) --cull_period=$(CULL_PERIOD) \
-		--logging=$(LOGGING) --pool_size=$(POOL_SIZE)
+		--logging=$(LOGGING) --pool_size=$(POOL_SIZE) --cull_max=$(CULL_MAX)
 
 dev: cleanup proxy tmpnb open
 
