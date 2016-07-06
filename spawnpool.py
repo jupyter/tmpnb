@@ -75,6 +75,7 @@ class SpawnPool():
         self.user_length = user_length
 
         self.available = deque()
+        self.started = {}
 
         self.static_files = static_files
         self.static_dump_path = static_dump_path
@@ -88,8 +89,11 @@ class SpawnPool():
 
         if not self.available:
             raise EmptyPoolError()
-
-        return self.available.pop()
+        
+        container = self.available.pop()
+        # signal start on acquisition
+        self.started[container.id] = datetime.utcnow()
+        return container
 
     @gen.coroutine
     def adhoc(self, user):
@@ -112,6 +116,7 @@ class SpawnPool():
 
         try:
             app_log.info("Releasing container [%s].", container)
+            self.started.pop(container.id, None)
             yield [
                 self.spawner.shutdown_notebook_server(container.id),
                 self._proxy_remove(container.path)
@@ -185,7 +190,9 @@ class SpawnPool():
                                   self.spawner,
                                   self.container_name_pattern,
                                   self.proxy_endpoint,
-                                  self.proxy_token)
+                                  self.proxy_token,
+                                  self.started,
+                                  )
             yield diagnosis.observe()
 
             tasks = []
@@ -280,7 +287,6 @@ class SpawnPool():
         body = json.dumps({
             "target": "http://{}:{}".format(host_ip, host_port),
             "container_id": container_id,
-            "started": datetime.utcnow().strftime(_date_fmt),
         })
 
         app_log.debug("Proxying path [%s] to port [%s].", path, host_port)
@@ -388,13 +394,14 @@ class Diagnosis():
     correct them. This includes zombie containers, containers that are running but not routed in the
     proxy, proxy routes that exist without a corresponding container, or other strange conditions.'''
 
-    def __init__(self, cull_idle, cull_max_age, spawner, name_pattern, proxy_endpoint, proxy_token):
+    def __init__(self, cull_idle, cull_max_age, spawner, name_pattern, proxy_endpoint, proxy_token, started):
         self.spawner = spawner
         self.name_pattern = name_pattern
         self.proxy_endpoint = proxy_endpoint
         self.proxy_token = proxy_token
         self.cull_idle = cull_idle
         self.cull_max_age = cull_max_age
+        self.started = started
 
     @gen.coroutine
     def observe(self):
@@ -424,30 +431,31 @@ class Diagnosis():
             else:
                 self.stopped_container_ids.append(id)
 
-        idle_cutoff = datetime.utcnow() - self.cull_idle
-        started_cutoff = datetime.utcnow() - self.cull_max_age
+        now = datetime.utcnow()
+        idle_cutoff = now - self.cull_idle
+        started_cutoff = now - self.cull_max_age
 
         # Sort proxy routes into living, stale, and zombie routes.
         living_set = set(self.living_container_ids)
         for path, route in results["proxy"].items():
             last_activity_s = route.get('last_activity', None)
-            started_s = route.get('started', None)
             container_id = route.get('container_id', None)
             if container_id:
                 result = (path, container_id)
                 if container_id in living_set:
                     try:
                         last_activity = datetime.strptime(last_activity_s, _date_fmt)
-                        started = datetime.strptime(started_s, _date_fmt)
-
+                        started = self.started.get(container_id, None)
                         self.routes.add(result)
                         if last_activity < idle_cutoff:
                             app_log.info("Culling %s, idle since %s", path, last_activity)
                             self.stale_routes.append(result)
-                        elif started < started_cutoff:
+                        elif started and started < started_cutoff:
                             app_log.info("Culling %s, up since %s", path, started)
                             self.stale_routes.append(result)
                         else:
+                            app_log.debug("Container %s up since %s, idle since %s",
+                                          path, started, last_activity)
                             self.live_routes.append(result)
                     except ValueError as e:
                         app_log.warning("Ignoring a proxy route with an unparsable activity date: %s", e)
