@@ -25,6 +25,30 @@ If you are running docker using docker-machine, as is now the standard, get the 
 
 If it didn't come up, try running `docker ps -a` and `docker logs tmpnb` to help diagnose issues.
 
+Alternatively, you can choose to setup a docker-compose.yml file:
+```
+httpproxy:
+  image: jupyter/configurable-http-proxy
+  environment:
+    CONFIGPROXY_AUTH_TOKEN: 716238957362948752139417234
+  container_name:  tmpnb-proxy
+  net: "host"
+  command: --default-target http://127.0.0.1:9999
+  ports:
+    - 8000:8000
+
+tmpnb_orchestrate:
+  image: jupyter/tmpnb
+  net: "host"
+  container_name: tmpnb_orchestrate
+  environment:
+    CONFIGPROXY_AUTH_TOKEN: 716238957362948752139417234
+  volumes:
+    - /var/run/docker.sock:/docker.sock
+```
+
+Then, you can launch the container with `docker-compose up`, no building is required since they pull directly form images.
+
 #### Advanced configuration
 
 If you need to set the `docker-version` or other options, they can be passed to `jupyter/tmpnb` directly:
