@@ -13,7 +13,7 @@ from tornado.log import app_log
 ContainerConfig = namedtuple('ContainerConfig', [
     'image', 'command', 'mem_limit', 'cpu_quota', 'cpu_shares', 'container_ip',
     'container_port', 'container_user', 'host_network', 'host_directories',
-    'extra_hosts'
+    'extra_hosts', 'docker_network',
 ])
 
 # Number of times to retry API calls before giving up.
@@ -79,13 +79,13 @@ class DockerSpawner():
 
         Returns the (container_id, ip, port) tuple in a Future.'''
 
-        if container_config.host_network:
+        if container_config.host_network or container_config.docker_network:
             # Start with specified container port
             if self.port == 0:
                 self.port = int(container_config.container_port)
             port = self.port
             self.port += 1
-            # No bindings when using the host network
+            # No bindings when using the host network or internal docker network
             port_bindings = None
         else:
             # Bind the specified within-container port to a random port
@@ -165,10 +165,16 @@ class DockerSpawner():
 
         docker_warnings = resp.get('Warnings')
         if docker_warnings is not None:
-            app_log.warn(docker_warnings)
+            app_log.warning(docker_warnings)
 
         container_id = resp['Id']
         app_log.info("Created container {}".format(container_id))
+        
+        if container_config.docker_network:
+            yield self._with_retries(self.docker_client.connect_container_to_network,
+                                            container_id,
+                                            container_config.docker_network,
+            )
 
         yield self._with_retries(self.docker_client.start,
                                  container_id)
@@ -176,6 +182,11 @@ class DockerSpawner():
         if container_config.host_network:
             host_port = port
             host_ip = container_config.container_ip
+        elif container_config.docker_network:
+            container_info = yield self._with_retries(self.docker_client.inspect_container, container_id)
+            host_port = port
+            # get ip of container on the specified docker network
+            host_ip = container_info['NetworkSettings']['Networks'][container_config.docker_network]['IPAddress']
         else:
             container_network = yield self._with_retries(self.docker_client.port,
                                                          container_id,
