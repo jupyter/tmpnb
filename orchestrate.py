@@ -85,6 +85,12 @@ class BaseHandler(RequestHandler):
     def api_token(self):
         return self.settings['api_token']
 
+    def options(self):
+        '''Respond to options requests'''
+        self.set_status(204)
+        self.finish()
+
+
 class LoadingHandler(BaseHandler):
     def get(self, path=None):
         self.render("loading.html", is_user_path=self.is_user_path(path))
@@ -174,7 +180,7 @@ class APISpawnHandler(BaseHandler):
     @web.authenticated
     @gen.coroutine
     def post(self):
-        '''Spawns a brand new server programatically'''
+        '''Spawns a brand new server programmatically'''
         try:
             url = self.pool.acquire().path
             app_log.info("Allocated [%s] from the pool.", url)
