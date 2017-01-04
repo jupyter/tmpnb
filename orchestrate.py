@@ -183,7 +183,10 @@ class APISpawnHandler(BaseHandler):
     def post(self):
         '''Spawns a brand new server programmatically'''
         try:
-            url = self.pool.acquire().path
+            container = self.pool.acquire()
+            url = container.path
+            if container.token:
+                url = url_concat(url, {'token': container.token})
             app_log.info("Allocated [%s] from the pool.", url)
             app_log.debug("Responding with container url [%s].", url)
             self.write({'url': url})
