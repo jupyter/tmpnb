@@ -1,19 +1,20 @@
-from concurrent.futures import ThreadPoolExecutor
+import binascii
 from collections import namedtuple
-import re
+from concurrent.futures import ThreadPoolExecutor
+import os
 
 import docker
 import requests
 
 from docker.utils import create_host_config, kwargs_from_env
 
-from tornado import gen, web
+from tornado import gen
 from tornado.log import app_log
 
 ContainerConfig = namedtuple('ContainerConfig', [
     'image', 'command', 'mem_limit', 'cpu_quota', 'cpu_shares', 'container_ip',
     'container_port', 'container_user', 'host_network', 'host_directories',
-    'extra_hosts', 'docker_network',
+    'extra_hosts', 'docker_network', 'use_tokens',
 ])
 
 # Number of times to retry API calls before giving up.
@@ -53,7 +54,9 @@ class DockerSpawner():
                  version='auto',
                  timeout=30,
                  max_workers=64,
-                 assert_hostname=False):
+                 assert_hostname=False,
+                 use_tokens=False,
+                 ):
 
         #kwargs = kwargs_from_env(assert_hostname=False)
         kwargs = kwargs_from_env(assert_hostname=assert_hostname)
@@ -107,8 +110,12 @@ class DockerSpawner():
         #
         # Important piece here is the parametrized base_path to let the
         # underlying process know where the proxy is routing it.
+        if container_config.use_tokens:
+            token = binascii.hexlify(os.urandom(24)).decode('ascii')
+        else:
+            token = ''
         rendered_command = container_config.command.format(base_path=base_path, port=port,
-            ip=container_config.container_ip)
+            ip=container_config.container_ip, token=token)
 
         command = [
             "/bin/sh",
@@ -195,7 +202,7 @@ class DockerSpawner():
             host_port = container_network[0]['HostPort']
             host_ip = container_network[0]['HostIp']
 
-        raise gen.Return((container_id, host_ip, int(host_port)))
+        raise gen.Return((container_id, host_ip, int(host_port), token))
 
     @gen.coroutine
     def shutdown_notebook_server(self, container_id, alive=True):
