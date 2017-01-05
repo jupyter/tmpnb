@@ -2,16 +2,14 @@
 # -*- coding: utf-8 -*-
 
 import datetime
-import json
 import os
 import re
 from textwrap import dedent
 import uuid
 
-from concurrent.futures import ThreadPoolExecutor
-
 import tornado
 import tornado.options
+from tornado.httputil import url_concat
 from tornado.log import app_log
 from tornado.web import RequestHandler, HTTPError, RedirectHandler
 
@@ -137,13 +135,14 @@ class SpawnHandler(BaseHandler):
 
                 # Scrap a container from the pool and replace it with an ad-hoc replacement.
                 # This takes longer, but is necessary to support ad-hoc containers
-                yield self.pool.adhoc(user)
+                container = yield self.pool.adhoc(user)
 
                 url = path
             else:
                 # There is no path or it represents a subpath of the notebook server
                 # Assign a prelaunched container from the pool and redirect to it.
-                container_path = self.pool.acquire().path
+                container = self.pool.acquire()
+                container_path = container.path
                 app_log.info("Allocated [%s] from the pool.", container_path)
 
                 # If no path is set, append self.redirect_uri to the redirect target, else
@@ -155,8 +154,10 @@ class SpawnHandler(BaseHandler):
                     redirect_path = path.lstrip('/')
 
                 url = "/{}/{}".format(container_path, redirect_path)
-
-            app_log.debug("Redirecting [%s] -> [%s].", self.request.path, url)
+            
+            if container.token:
+                url = url_concat(url, {'token': container.token})
+            app_log.info("Redirecting [%s] -> [%s].", self.request.path, url)
             self.redirect(url, permanent=False)
         except spawnpool.EmptyPoolError:
             app_log.warning("The container pool is empty!")
@@ -182,7 +183,10 @@ class APISpawnHandler(BaseHandler):
     def post(self):
         '''Spawns a brand new server programmatically'''
         try:
-            url = self.pool.acquire().path
+            container = self.pool.acquire()
+            url = container.path
+            if container.token:
+                url = url_concat(url, {'token': container.token})
             app_log.info("Allocated [%s] from the pool.", url)
             app_log.debug("Responding with container url [%s].", url)
             self.write({'url': url})
@@ -250,12 +254,17 @@ the host IP address for notebook servers to bind to."""
         help="""Within container port for notebook servers to bind to.
 If host_network=True, the starting port assigned to notebook servers on the host."""
     )
+    tornado.options.define('use_tokens', default=False,
+        help="""Enable token-authentication of notebook servers.
+If host_network=True, the starting port assigned to notebook servers on the host."""
+    )
 
     command_default = (
         'jupyter notebook --no-browser'
         ' --port {port} --ip=0.0.0.0'
         ' --NotebookApp.base_url=/{base_path}'
         ' --NotebookApp.port_retries=0'
+        ' --NotebookApp.token="{token}"'
     )
 
     tornado.options.define('command', default=command_default,
@@ -397,6 +406,7 @@ default docker bridge. Affects the semantics of container_port and container_ip.
     container_config = dockworker.ContainerConfig(
         image=opts.image,
         command=opts.command,
+        use_tokens=opts.use_tokens,
         mem_limit=opts.mem_limit,
         cpu_quota=opts.cpu_quota,
         cpu_shares=opts.cpu_shares,
@@ -406,7 +416,7 @@ default docker bridge. Affects the semantics of container_port and container_ip.
         host_network=opts.host_network,
         docker_network=opts.docker_network,
         host_directories=opts.host_directories,
-        extra_hosts=opts.extra_hosts
+        extra_hosts=opts.extra_hosts,
     )
 
     spawner = dockworker.DockerSpawner(docker_host,

@@ -33,8 +33,14 @@ def new_user(size):
     return sample_with_replacement(string.ascii_letters + string.digits, size)
 
 
-PooledContainer = namedtuple('PooledContainer', ['id', 'path'])
-
+class PooledContainer(object):
+    def __init__(self, id, path, token=''):
+        self.id = id
+        self.path = path
+        self.token = token
+    
+    def __repr__(self):
+        return 'PooledContainer(id=%s, path=%s)' % (self.id, self.path)
 
 class EmptyPoolError(Exception):
     '''Exception raised when a container is requested from an empty pool.'''
@@ -209,7 +215,7 @@ class SpawnPool():
                                         if id not in self._pooled_ids()]
             for path, id in unpooled_stale_routes:
                 app_log.debug("Replacing stale route [%s] and container [%s].", path, id)
-                container = PooledContainer(path=path, id=id)
+                container = PooledContainer(path=path, id=id, token='')
                 tasks.append(self.release(container, replace_if_room=True))
 
             # Normalize the container count to its initial capacity by scheduling deletions if we're
@@ -273,7 +279,7 @@ class SpawnPool():
         create_result = yield self.spawner.create_notebook_server(base_path=path,
                                                                   container_name=container_name,
                                                                   container_config=self.container_config)
-        container_id, host_ip, host_port = create_result
+        container_id, host_ip, host_port, token = create_result
         app_log.debug("Created notebook server [%s] for path [%s] at [%s:%s]", container_name, path, host_ip, host_port)
 
         # Wait for the server to launch within the container before adding it to the pool or
@@ -300,7 +306,7 @@ class SpawnPool():
         except HTTPError as e:
             app_log.error("Failed to create proxy route to [%s]: %s", path, e)
 
-        container = PooledContainer(id=container_id, path=path)
+        container = PooledContainer(id=container_id, path=path, token=token)
         if enpool:
             app_log.info("Adding container [%s] to the pool.", container)
             self.available.append(container)

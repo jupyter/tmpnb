@@ -3,7 +3,7 @@ CULL_PERIOD ?= 30
 CULL_TIMEOUT ?= 60
 CULL_MAX ?= 120
 LOGGING ?= debug
-POOL_SIZE ?= 1
+POOL_SIZE ?= 5
 DOCKER_HOST ?= 127.0.0.1
 DOCKER_NETWORK_NAME ?= tmpnb
 
@@ -41,7 +41,8 @@ tmpnb: minimal-image tmpnb-image network
 		-v /var/run/docker.sock:/docker.sock jupyter/tmpnb python orchestrate.py \
 		--image=jupyter/minimal-notebook --cull_timeout=$(CULL_TIMEOUT) --cull_period=$(CULL_PERIOD) \
 		--logging=$(LOGGING) --pool_size=$(POOL_SIZE) --cull_max=$(CULL_MAX) \
-		--docker_network=$(DOCKER_NETWORK_NAME)
+		--docker_network=$(DOCKER_NETWORK_NAME) \
+		--use_tokens=1
 
 dev: cleanup network proxy tmpnb open
 
