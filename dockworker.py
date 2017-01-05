@@ -55,7 +55,6 @@ class DockerSpawner():
                  timeout=30,
                  max_workers=64,
                  assert_hostname=False,
-                 use_tokens=False,
                  ):
 
         #kwargs = kwargs_from_env(assert_hostname=False)
@@ -111,6 +110,8 @@ class DockerSpawner():
         # Important piece here is the parametrized base_path to let the
         # underlying process know where the proxy is routing it.
         if container_config.use_tokens:
+            # Generate token for authenticating first request (requires notebook 4.3)
+            # making each server semi-private for the user who is first assigned.
             token = binascii.hexlify(os.urandom(24)).decode('ascii')
         else:
             token = ''
