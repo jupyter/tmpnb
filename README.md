@@ -16,8 +16,9 @@ Get Docker, then:
 docker pull jupyter/minimal-notebook
 export TOKEN=$( head -c 30 /dev/urandom | xxd -p )
 docker run --net=host -d -e CONFIGPROXY_AUTH_TOKEN=$TOKEN --name=proxy jupyter/configurable-http-proxy --default-target http://127.0.0.1:9999
-docker run --net=host -d -e CONFIGPROXY_AUTH_TOKEN=$TOKEN --name=tmpnb -v /var/run/docker.sock:/docker.sock jupyter/tmpnb
+docker run --net=host -d -e CONFIGPROXY_AUTH_TOKEN=$TOKEN --name=tmpnb -v /var/run/docker.sock:/docker.sock jupyter/tmpnb python orchestrate.py --command='jupyter notebook --no-browser --port {port} --ip=0.0.0.0 --NotebookApp.base_url=/{base_path} --NotebookApp.port_retries=0 --NotebookApp.token="" --NotebookApp.disable_check_xsrf=True
 ```
+NOTE! This will disable Jupyter Notebook's token security. You can set `--NotebookApp.token` to a string if you want to add a minimal layer of security.
 
 BAM! Visit your Docker host on port 8000 and you have a working tmpnb setup. The ` -v /var/run/docker.sock:/docker.sock` bit causes the orchestrator container to mount the docker client, which allows the orchestrator container to spawn docker containers on the host (see [this article](http://nathanleclaire.com/blog/2014/07/12/10-docker-tips-and-tricks-that-will-make-you-sing-a-whale-song-of-joy/#bind-mount-the-docker-socket-on-docker-run:1765430f0793020845eca6c8326a4e45) for more information).
 
