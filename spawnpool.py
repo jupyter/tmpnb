@@ -38,7 +38,7 @@ class PooledContainer(object):
         self.id = id
         self.path = path
         self.token = token
-    
+
     def __repr__(self):
         return 'PooledContainer(id=%s, path=%s)' % (self.id, self.path)
 
@@ -95,7 +95,7 @@ class SpawnPool():
 
         if not self.available:
             raise EmptyPoolError()
-        
+
         container = self.available.pop()
         # signal start on acquisition
         self.started[container.id] = datetime.utcnow()
@@ -159,7 +159,7 @@ class SpawnPool():
     def drain(self):
         '''
         Completely cleanout all available containers in the pool and immediately
-        schedule their replacement. Useful for refilling the pool with a new 
+        schedule their replacement. Useful for refilling the pool with a new
         container image while leaving in-use containers untouched. Returns the
         number of containers drained.
         '''
@@ -453,7 +453,7 @@ class Diagnosis():
                         last_activity = datetime.strptime(last_activity_s, _date_fmt)
                         started = self.started.get(container_id, None)
                         self.routes.add(result)
-                        if last_activity < idle_cutoff:
+                        if started and last_activity < idle_cutoff:
                             app_log.info("Culling %s, idle since %s", path, last_activity)
                             self.stale_routes.append(result)
                         elif started and started < started_cutoff:
