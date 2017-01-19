@@ -154,7 +154,7 @@ class SpawnHandler(BaseHandler):
                     redirect_path = path.lstrip('/')
 
                 url = "/{}/{}".format(container_path, redirect_path)
-            
+
             if container.token:
                 url = url_concat(url, {'token': container.token})
             app_log.info("Redirecting [%s] -> [%s].", self.request.path, url)
@@ -295,11 +295,11 @@ If host_network=True, the starting port assigned to notebook servers on the host
     tornado.options.define('cpu_quota', default=None, type=int,
         help=dedent("""
         Limit CPU quota, per container.
-        
+
         Units are CPU-µs per 100ms, so 1 CPU/container would be:
-        
+
             --cpu-quota=100000
-        
+
         """)
     )
     tornado.options.define('image', default="jupyter/minimal-notebook",
@@ -397,7 +397,7 @@ default docker bridge. Affects the semantics of container_port and container_ip.
     ]
 
     max_idle = datetime.timedelta(seconds=opts.cull_timeout)
-    max_age = datetime.timedelta(seconds=opts.cull_timeout)
+    max_age = datetime.timedelta(seconds=opts.cull_max)
     pool_name = opts.pool_name
     if pool_name is None:
         # Derive a valid container name from the image name by default.
