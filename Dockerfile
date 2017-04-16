@@ -1,19 +1,25 @@
-FROM python:3.4-wheezy
+FROM alpine
 
-RUN apt-get update && apt-get install python-dev libcurl4-openssl-dev -y
-RUN pip install --upgrade pip
+RUN REPO=http://dl-cdn.alpinelinux.org/alpine \
+&& echo -e "$REPO/v3.5/main\n\
+$REPO/v3.5/community\n\
+$REPO/edge/main\n\
+$REPO/edge/community\n\
+$REPO/edge/testing" > /etc/apk/repositories \
+&& apk update && apk add python3-dev py3-dateutil curl-dev openssl-dev gcc g++ \
+&& mkdir -p /srv/tmpnb \
+&& echo -e "tornado==4.4.3\n\
+docker-py==1.10.6\n\
+pycurl==7.43.0\n\
+pytz==2017.2" > /srv/tmpnb/requirements.txt \
+&& pip3 install -r /srv/tmpnb/requirements.txt \
+&& apk del --purge python3-dev curl-dev openssl-dev zlib-dev gcc g++ \
+&& apk add libcurl libcrypto1.0 
 
-RUN mkdir -p /srv/tmpnb
 WORKDIR /srv/tmpnb/
 
-# Copy the requirements.txt in by itself first to avoid docker cache busting
-# any time any file in the project changes
-COPY requirements.txt /srv/tmpnb/requirements.txt
-RUN pip install -r requirements.txt
-
-# Now copy in everything else
 COPY . /srv/tmpnb/
 
 ENV DOCKER_HOST unix://docker.sock
 
-CMD python orchestrate.py
+CMD python3 orchestrate.py
