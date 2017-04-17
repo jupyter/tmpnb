@@ -1,7 +1,8 @@
 FROM alpine:3.5
 
-RUN apk update && apk add python3 py3-dateutil py3-curl py3-tornado py3-tz \
-&& mkdir -p /srv/tmpnb && pip3 install docker-py \
+RUN apk update && apk add python3 py3-curl \
+&& mkdir -p /srv/tmpnb && pip3 install docker-py tornado  pytz \
+&& pip3 install --upgrade pip && rm -fr /root/.cache/pip \
 && ln -s /usr/bin/python3 /usr/bin/python
 
 WORKDIR /srv/tmpnb/
