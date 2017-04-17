@@ -1,12 +1,17 @@
-FROM alpine:3.5
+FROM python:3.4-wheezy
 
-RUN apk update && apk add python3 py3-curl \
-&& mkdir -p /srv/tmpnb && pip3 install docker-py tornado  pytz \
-&& pip3 install --upgrade pip && rm -fr /root/.cache/pip \
-&& ln -s /usr/bin/python3 /usr/bin/python
+RUN apt-get update && apt-get install python-dev libcurl4-openssl-dev -y
+RUN pip install --upgrade pip
 
+RUN mkdir -p /srv/tmpnb
 WORKDIR /srv/tmpnb/
 
+# Copy the requirements.txt in by itself first to avoid docker cache busting
+# any time any file in the project changes
+COPY requirements.txt /srv/tmpnb/requirements.txt
+RUN pip install -r requirements.txt
+
+# Now copy in everything else
 COPY . /srv/tmpnb/
 
 ENV DOCKER_HOST unix://docker.sock
