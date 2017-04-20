@@ -6,7 +6,7 @@ import os
 import docker
 import requests
 
-from docker.utils import create_host_config, kwargs_from_env
+from docker.utils import kwargs_from_env
 
 from tornado import gen
 from tornado.log import app_log
@@ -153,7 +153,8 @@ class DockerSpawner():
             cpu_quota=container_config.cpu_quota,
         )
 
-        host_config = create_host_config(**host_config)
+        host_config = docker.Client.create_host_config(self.docker_client,
+                                                       **host_config)
         
         cpu_shares = None
 
