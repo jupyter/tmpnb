@@ -63,9 +63,9 @@ class DockerSpawner():
         # environment variable DOCKER_HOST takes precedence
         kwargs.setdefault('base_url', docker_host)
 
-        blocking_docker_client = docker.Client(version=version,
-                                               timeout=timeout,
-                                               **kwargs)
+        blocking_docker_client = docker.APIClient(version=version,
+                                                  timeout=timeout,
+                                                  **kwargs)
 
         executor = ThreadPoolExecutor(max_workers=max_workers)
 
@@ -153,8 +153,8 @@ class DockerSpawner():
             cpu_quota=container_config.cpu_quota,
         )
 
-        host_config = docker.Client.create_host_config(self.docker_client,
-                                                       **host_config)
+        host_config = docker.APIClient.create_host_config(self.docker_client,
+                                                          **host_config)
         
         cpu_shares = None
 
