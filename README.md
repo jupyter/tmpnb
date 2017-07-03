@@ -196,7 +196,7 @@ orchestrate.py options:
                                    multiple directories can be specified by 
                                    using a comma-delimited string,
                                    directory path must provided in full
-                                   (eg: /home/steve/data/:/usr/data/:r), 
+                                   (eg: /home/steve/data/:/usr/data/:rw), 
                                    permissions default to rw
   --host-network                   Attaches the containers to the host
                                    networking instead of the default docker
