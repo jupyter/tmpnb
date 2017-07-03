@@ -354,10 +354,12 @@ default docker bridge. Affects the semantics of container_port and container_ip.
     )
     tornado.options.define('host_directories', default=None,
         help=dedent("""
-        Mount the specified directory as a data volume, multiple
+        Mount the specified directory as a data volume in a specified location
+        (provide an empty value to use a default mount path), multiple
         directories can be specified by using a comma-delimited string, directory
-        path must provided in full (eg: /home/steve/data/:r), permissions default to
+        path must provided in full (eg: /home/steve/data/:/usr/data/:rw), permissions default to
         rw"""))
+
     tornado.options.define('user_length', default=12,
         help="Length of the unique /user/:id path generated per container"
     )

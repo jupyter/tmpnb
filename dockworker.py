@@ -63,9 +63,9 @@ class DockerSpawner():
         # environment variable DOCKER_HOST takes precedence
         kwargs.setdefault('base_url', docker_host)
 
-        blocking_docker_client = docker.Client(version=version,
-                                               timeout=timeout,
-                                               **kwargs)
+        blocking_docker_client = docker.APIClient(version=version,
+                                                  timeout=timeout,
+                                                  **kwargs)
 
         executor = ThreadPoolExecutor(max_workers=max_workers)
 
@@ -131,13 +131,21 @@ class DockerSpawner():
             for index, item in enumerate(directories):
                 directory = item.split(":")[0]
                 try:
-                    permissions = item.split(":")[1]
+                    mount_path = item.split(":")[1]
+                    if not mount_path:  # /host/dir::ro
+                        raise IndexError
+                except IndexError:
+                    mount_path = '/mnt/vol' + str(index)
+                try:
+                    permissions = item.split(":")[2]
+                    if not permissions:
+                        raise IndexError
                 except IndexError:
                     permissions = 'rw'
+                volumes.append(mount_path)
 
-                volumes.append('/mnt/vol' + str(index))
                 volume_bindings[directory] = {
-                    'bind': '/mnt/vol' + str(index),
+                    'bind': mount_path,
                     'mode': permissions
                 }
 
@@ -153,8 +161,8 @@ class DockerSpawner():
             cpu_quota=container_config.cpu_quota,
         )
 
-        host_config = docker.Client.create_host_config(self.docker_client,
-                                                       **host_config)
+        host_config = docker.APIClient.create_host_config(self.docker_client,
+                                                          **host_config)
         
         cpu_shares = None
 
