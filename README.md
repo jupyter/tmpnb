@@ -191,11 +191,13 @@ orchestrate.py options:
                                    comma-delimited string, specified in the
                                    form hostname:IP (default [])
   --host-directories               Mount the specified directory as a data
-                                   volume, multiple         directories can be
-                                   specified by using a comma-delimited string,
-                                   directory         path must provided in full
-                                   (eg: /home/steve/data/:r), permissions
-                                   default to         rw
+                                   volume at a user specified location 
+                                   (empty value to use the  default location), 
+                                   multiple directories can be specified by 
+                                   using a comma-delimited string,
+                                   directory path must provided in full
+                                   (eg: /home/steve/data/:/usr/data/:r), 
+                                   permissions default to rw
   --host-network                   Attaches the containers to the host
                                    networking instead of the default docker
                                    bridge. Affects the semantics of
