@@ -192,6 +192,7 @@ class APISpawnHandler(BaseHandler):
             self.write({'url': url})
         except spawnpool.EmptyPoolError:
             app_log.warning("The container pool is empty!")
+            self.set_status(429)
             self.write({'status': 'full'})
 
     @property
