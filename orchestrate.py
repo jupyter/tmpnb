@@ -101,7 +101,7 @@ class APIStatsHandler(BaseHandler):
         response = {
                 'available': len(self.pool.available),
                 'capacity': self.pool.capacity,
-                'version': '0.1.0',
+                'version': '0.2.0',
                 'container_image': self.pool.container_config.image,
         }
         self.write(response)
