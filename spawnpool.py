@@ -19,6 +19,8 @@ import re
 import dockworker
 
 AsyncHTTPClient.configure("tornado.curl_httpclient.CurlAsyncHTTPClient")
+import logging
+logging.getLogger("tornado.curl_httpclient").setLevel(logging.INFO)
 
 _date_fmt = '%Y-%m-%dT%H:%M:%S.%fZ'
 
