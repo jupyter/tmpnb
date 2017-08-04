@@ -113,6 +113,7 @@ class SpawnPool():
         yield self.release(to_release, False)
 
         launched = yield self._launch_container(user=user, enpool=False)
+        self.started[launched.id] = datetime.utcnow()
         raise gen.Return(launched)
 
     @gen.coroutine
