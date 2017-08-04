@@ -16,7 +16,7 @@ Get Docker, then:
 docker pull jupyter/minimal-notebook
 export TOKEN=$( head -c 30 /dev/urandom | xxd -p )
 docker run --net=host -d -e CONFIGPROXY_AUTH_TOKEN=$TOKEN --name=proxy jupyter/configurable-http-proxy --default-target http://127.0.0.1:9999
-docker run --net=host -d -e CONFIGPROXY_AUTH_TOKEN=$TOKEN --name=tmpnb -v /var/run/docker.sock:/docker.sock jupyter/tmpnb python orchestrate.py --container-user=jovyan --command='jupyter notebook --no-browser --port {port} --ip=0.0.0.0 --NotebookApp.base_url=/{base_path} --NotebookApp.port_retries=0 --NotebookApp.token="" --NotebookApp.disable_check_xsrf=True'
+docker run --net=host -d -e CONFIGPROXY_AUTH_TOKEN=$TOKEN --name=tmpnb -v /var/run/docker.sock:/docker.sock jupyter/tmpnb python orchestrate.py --container-user=jovyan --command='jupyter notebook --no-browser --port {port} --ip=0.0.0.0 --NotebookApp.base_url={base_path} --NotebookApp.port_retries=0 --NotebookApp.token="" --NotebookApp.disable_check_xsrf=True'
 ```
 NOTE! This will disable Jupyter Notebook's token security. The option for `container-user` assures that the notebook will not run as a privileged user. You can set `--NotebookApp.token` to a string if you want to add a minimal layer of security.
 
@@ -46,7 +46,7 @@ tmpnb_orchestrate:
     CONFIGPROXY_AUTH_TOKEN: 716238957362948752139417234
   volumes:
     - /var/run/docker.sock:/docker.sock
-  command: python orchestrate.py --command='jupyter notebook --no-browser --port {port} --ip=0.0.0.0 --NotebookApp.base_url=/{base_path} --NotebookApp.port_retries=0 --NotebookApp.token="" --NotebookApp.disable_check_xsrf=True'
+  command: python orchestrate.py --command='jupyter notebook --no-browser --port {port} --ip=0.0.0.0 --NotebookApp.base_url={base_path} --NotebookApp.port_retries=0 --NotebookApp.token="" --NotebookApp.disable_check_xsrf=True'
 ```
 
 Then, you can launch the container with `docker-compose up`, no building is required since they pull directly from images.
@@ -156,7 +156,7 @@ orchestrate.py options:
                                    provided. A placeholder for {port} and {ip}
                                    can be provided. (default jupyter notebook
                                    --no-browser --port {port} --ip=0.0.0.0
-                                   --NotebookApp.base_url=/{base_path}
+                                   --NotebookApp.base_url={base_path}
                                    --NotebookApp.port_retries=0)
   --container-ip                   Host IP address for containers to bind to.
                                    If host_network=True, the host IP address

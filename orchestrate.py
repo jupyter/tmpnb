@@ -263,7 +263,7 @@ If host_network=True, the starting port assigned to notebook servers on the host
     command_default = (
         'jupyter notebook --no-browser'
         ' --port {port} --ip=0.0.0.0'
-        ' --NotebookApp.base_url=/{base_path}'
+        ' --NotebookApp.base_url={base_path}'
         ' --NotebookApp.port_retries=0'
         ' --NotebookApp.token="{token}"'
     )

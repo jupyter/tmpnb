@@ -228,16 +228,16 @@ class SpawnPool():
             over = range(self.capacity, current)
 
             if under:
-                app_log.debug("Launching [%i] new containers to populate the pool.", len(under))
+                app_log.info("Launching [%i] new containers to populate the pool.", len(under))
             for i in under:
                 tasks.append(self._launch_container())
 
             if over:
-                app_log.debug("Removing [%i] containers to diminish the pool.", len(over))
+                app_log.info("Removing [%i] containers to diminish the pool.", len(over))
             for i in over:
                 try:
                     pooled = self.acquire()
-                    app_log.debug("Releasing container [%s] to shrink the pool.", pooled.id)
+                    app_log.info("Releasing container [%s] to shrink the pool.", pooled.id)
                     tasks.append(self.release(pooled, False))
                 except EmptyPoolError:
                     app_log.warning("Unable to shrink: pool is diminished, all containers in use.")
@@ -268,7 +268,7 @@ class SpawnPool():
         if user is None:
             user = new_user(self.user_length)
 
-        path = "user/" + user
+        path = "/user/%s/" % user
 
         # This must match self.container_name_pattern or Bad Things will happen.
         # You don't want Bad Things to happen, do you?
@@ -292,7 +292,7 @@ class SpawnPool():
         http_client = AsyncHTTPClient()
         headers = {"Authorization": "token {}".format(self.proxy_token)}
 
-        proxy_endpoint = "{}/api/routes/{}".format(self.proxy_endpoint, path)
+        proxy_endpoint = "{}/api/routes{}".format(self.proxy_endpoint, path)
         body = json.dumps({
             "target": "http://{}:{}".format(host_ip, host_port),
             "container_id": container_id,
@@ -345,7 +345,7 @@ class SpawnPool():
 
         # Now, make sure that we can reach the Notebook server.
         http_client = AsyncHTTPClient()
-        req = HTTPRequest("http://{}:{}/{}".format(ip, port, path))
+        req = HTTPRequest("http://{}:{}{}".format(ip, port, path))
 
         while loop.time() - tic < timeout:
             try:
