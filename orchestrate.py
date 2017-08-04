@@ -153,7 +153,7 @@ class SpawnHandler(BaseHandler):
                 else:
                     redirect_path = path.lstrip('/')
 
-                url = "/{}/{}".format(container_path, redirect_path)
+                url = "/{}/{}".format(container_path.strip('/'), redirect_path)
 
             if container.token:
                 url = url_concat(url, {'token': container.token})
