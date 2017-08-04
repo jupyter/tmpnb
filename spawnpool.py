@@ -19,6 +19,8 @@ import re
 import dockworker
 
 AsyncHTTPClient.configure("tornado.curl_httpclient.CurlAsyncHTTPClient")
+import logging
+logging.getLogger("tornado.curl_httpclient").setLevel(logging.INFO)
 
 _date_fmt = '%Y-%m-%dT%H:%M:%S.%fZ'
 
@@ -111,6 +113,7 @@ class SpawnPool():
         yield self.release(to_release, False)
 
         launched = yield self._launch_container(user=user, enpool=False)
+        self.started[launched.id] = datetime.utcnow()
         raise gen.Return(launched)
 
     @gen.coroutine
