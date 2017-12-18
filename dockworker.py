@@ -131,13 +131,21 @@ class DockerSpawner():
             for index, item in enumerate(directories):
                 directory = item.split(":")[0]
                 try:
-                    permissions = item.split(":")[1]
+                    mount_path = item.split(":")[1]
+                    if not mount_path:  # /host/dir::ro
+                        raise IndexError
+                except IndexError:
+                    mount_path = '/mnt/vol' + str(index)
+                try:
+                    permissions = item.split(":")[2]
+                    if not permissions:
+                        raise IndexError
                 except IndexError:
                     permissions = 'rw'
 
-                volumes.append('/mnt/vol' + str(index))
+                volumes.append(mount_path)
                 volume_bindings[directory] = {
-                    'bind': '/mnt/vol' + str(index),
+                    'bind': mount_path,
                     'mode': permissions
                 }
 
