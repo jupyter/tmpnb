@@ -9,6 +9,7 @@ import uuid
 
 import tornado
 import tornado.options
+from tornado.httpserver import HTTPServer
 from tornado.httputil import url_concat
 from tornado.log import app_log
 from tornado.web import RequestHandler, HTTPError, RedirectHandler
@@ -493,11 +494,13 @@ default docker bridge. Affects the semantics of container_port and container_ip.
 
     app_log.info("Listening on {}:{}".format(opts.ip or '*', opts.port))
     application = tornado.web.Application(handlers, **settings)
-    application.listen(opts.port, opts.ip)
+    http_server = HTTPServer(application, xheaders=True)
+    http_server.listen(opts.port, opts.ip)
 
     app_log.info("Admin listening on {}:{}".format(opts.admin_ip or '*', opts.admin_port))
     admin_application = tornado.web.Application(admin_handlers, **admin_settings)
-    admin_application.listen(opts.admin_port, opts.admin_ip)
+    admin_server = HTTPServer(admin_application, xheaders=True)
+    admin_server.listen(opts.admin_port, opts.admin_ip)
 
     ioloop.start()
 
