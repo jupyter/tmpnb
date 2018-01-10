@@ -8,11 +8,11 @@ We recommend you switch to using JupyterHub.
 
 ### Configuration option 1:
 
-* JupyterHub with [tmpauthenticator](https://github.com/jupyterhub/tmpauthenticator)
+* [JupyterHub](https://jupyterhub.readthedocs.io/en/latest/) with [tmpauthenticator](https://github.com/jupyterhub/tmpauthenticator)
 
 ### Configuration option 2:
 
-* [BinderHub](https://github.com/jupyterhub/binderhub)
+* [BinderHub](https://binderhub.readthedocs.io/en/latest/)
 
 ----------------
 
