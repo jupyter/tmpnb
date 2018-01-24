@@ -2,6 +2,20 @@
 
 Launches "temporary" Jupyter notebook servers.
 
+**WARNING: tmpnb is no longer actively maintained.**
+
+We recommend you switch to using JupyterHub.
+
+### Configuration option 1:
+
+* [JupyterHub](https://jupyterhub.readthedocs.io/en/latest/) with [tmpauthenticator](https://github.com/jupyterhub/tmpauthenticator)
+
+### Configuration option 2:
+
+* [BinderHub](https://binderhub.readthedocs.io/en/latest/)
+
+----------------
+
 ![tmpnb architecture](https://cloud.githubusercontent.com/assets/836375/5911140/c53e3978-a587-11e4-86a5-695469ef23a5.png)
 
 tmpnb launches a docker container for each user that requests one. In practice, this gets used to [provide temporary notebooks](https://tmpnb.org), demo the IPython notebook as part of [a Nature article](http://www.nature.com/news/interactive-notebooks-sharing-the-code-1.16261), or even [provide Jupyter kernels for publications](http://odewahn.github.io/publishing-workflows-for-jupyter/#1).
